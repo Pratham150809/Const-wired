@@ -1,11 +1,10 @@
-import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { BookOpen, Search } from "lucide-react";
 import { useState } from "react";
 
+import { useRetrieveDocuments } from "../api";
 import { PageHeader } from "../components/common/PageHeader";
 import { EmptyState, ErrorState, LoadingState } from "../components/common/states";
-import { api } from "../lib/api";
 
 export const Route = createFileRoute("/app/knowledge")({ component: Knowledge });
 
@@ -17,7 +16,7 @@ function confidenceTone(score: number): string {
 
 function Knowledge() {
   const [query, setQuery] = useState("");
-  const search = useMutation({ mutationFn: (q: string) => api.retrieve(q, 8) });
+  const search = useRetrieveDocuments();
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();

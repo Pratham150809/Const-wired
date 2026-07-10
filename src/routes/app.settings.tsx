@@ -1,10 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { KeyRound, Cpu } from "lucide-react";
 
+import { useTenant } from "../api";
 import { PageHeader } from "../components/common/PageHeader";
 import { EmptyState } from "../components/common/states";
-import { api } from "../lib/api";
 import { useSession } from "../lib/session";
 
 export const Route = createFileRoute("/app/settings")({ component: SettingsPage });
@@ -29,7 +28,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 
 function SettingsPage() {
   const { me } = useSession();
-  const tenant = useQuery({ queryKey: ["tenant"], queryFn: api.getTenant });
+  const tenant = useTenant();
 
   return (
     <div className="max-w-3xl">

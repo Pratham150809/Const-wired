@@ -1,12 +1,11 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { FileText, Search, Upload } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
+import { useDocuments, useUploadDocument, type DocumentItem } from "../api";
 import { DataTable, type Column } from "../components/common/DataTable";
 import { PageHeader } from "../components/common/PageHeader";
 import { StatusBadge } from "../components/common/StatusBadge";
-import { api, type DocumentItem } from "../lib/api";
 
 export const Route = createFileRoute("/app/documents")({ component: Documents });
 
@@ -18,16 +17,11 @@ function formatSize(bytes: number | null): string {
 }
 
 function Documents() {
-  const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
 
-  const documents = useQuery({ queryKey: ["documents"], queryFn: api.listDocuments });
-
-  const upload = useMutation({
-    mutationFn: (file: File) => api.uploadDocument(file),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["documents"] }),
-  });
+  const documents = useDocuments();
+  const upload = useUploadDocument();
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();

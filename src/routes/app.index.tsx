@@ -1,13 +1,20 @@
-import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Activity, Cable, ClipboardCheck, FileText, MessagesSquare, Workflow } from "lucide-react";
 
+import {
+  useAuditEvents,
+  useConnectors,
+  useDocuments,
+  useSystemHealth,
+  useWorkflows,
+  type AuditEvent,
+  type DocumentItem,
+} from "../api";
 import { DataTable, type Column } from "../components/common/DataTable";
 import { PageHeader } from "../components/common/PageHeader";
 import { StatCard } from "../components/common/StatCard";
 import { StatusBadge } from "../components/common/StatusBadge";
 import { EmptyState } from "../components/common/states";
-import { api, type AuditEvent, type DocumentItem } from "../lib/api";
 import { useSession } from "../lib/session";
 
 export const Route = createFileRoute("/app/")({
@@ -17,16 +24,12 @@ export const Route = createFileRoute("/app/")({
 function Dashboard() {
   const { me, isManager } = useSession();
 
-  const workflows = useQuery({ queryKey: ["workflows"], queryFn: api.listWorkflows });
-  const documents = useQuery({ queryKey: ["documents"], queryFn: api.listDocuments });
-  const connectors = useQuery({ queryKey: ["connectors"], queryFn: api.listConnectors });
-  const health = useQuery({ queryKey: ["health"], queryFn: api.systemHealth });
+  const workflows = useWorkflows();
+  const documents = useDocuments();
+  const connectors = useConnectors();
+  const health = useSystemHealth();
   // Audit is manager-only on the backend — don't even fire it for members/viewers.
-  const audit = useQuery({
-    queryKey: ["audit", "recent"],
-    queryFn: () => api.listAuditEvents({ limit: 8 }),
-    enabled: isManager,
-  });
+  const audit = useAuditEvents("recent", 8, isManager);
 
   const wf = workflows.data ?? [];
   const activeCount = wf.filter((w) => w.status === "running").length;

@@ -23,7 +23,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { ApiError, api } from "../lib/api";
+import { ApiError, api } from "../api";
 import { CATEGORIES, INTEGRATIONS } from "../lib/catalog";
 import type { IntegrationCategory } from "../lib/catalog";
 import { IntegrationLogo } from "../components/common/IntegrationLogo";

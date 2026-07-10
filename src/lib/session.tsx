@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createContext, useContext } from "react";
 import type { ReactNode } from "react";
 
-import { api, type Me } from "./api";
+import { api, type Me } from "../api";
 
 type SessionCtx = {
   me: Me | null;

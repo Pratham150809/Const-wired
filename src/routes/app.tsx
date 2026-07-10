@@ -1,9 +1,9 @@
 import { Outlet, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
+import { api } from "../api";
 import { AppHeader } from "../components/layout/AppHeader";
 import { AppSidebar } from "../components/layout/AppSidebar";
-import { api } from "../lib/api";
 import { SessionProvider } from "../lib/session";
 import { ThemeProvider, useTheme } from "../lib/theme";
 import { cn } from "../lib/utils";

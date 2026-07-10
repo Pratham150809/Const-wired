@@ -1,11 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
+import { useAssignRole, useAuditEvents, useUsers, type AuditEvent, type UserItem } from "../api";
 import { DataTable, type Column } from "../components/common/DataTable";
 import { PageHeader } from "../components/common/PageHeader";
 import { EmptyState } from "../components/common/states";
-import { api, type AuditEvent, type UserItem } from "../lib/api";
 import { useSession } from "../lib/session";
 import { cn } from "../lib/utils";
 
@@ -59,12 +58,8 @@ function Admin() {
 }
 
 function UsersTab() {
-  const qc = useQueryClient();
-  const users = useQuery({ queryKey: ["users"], queryFn: api.listUsers });
-  const assign = useMutation({
-    mutationFn: ({ id, role }: { id: string; role: string }) => api.assignRole(id, role),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
-  });
+  const users = useUsers();
+  const assign = useAssignRole();
 
   const columns: Column<UserItem>[] = [
     {
@@ -119,10 +114,7 @@ function UsersTab() {
 }
 
 function AuditTab() {
-  const audit = useQuery({
-    queryKey: ["audit", "admin"],
-    queryFn: () => api.listAuditEvents({ limit: 200 }),
-  });
+  const audit = useAuditEvents("admin", 200);
 
   const columns: Column<AuditEvent>[] = [
     {

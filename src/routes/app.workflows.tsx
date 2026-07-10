@@ -1,11 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Workflow as WorkflowIcon } from "lucide-react";
 
+import { useWorkflows, type WorkflowItem } from "../api";
 import { DataTable, type Column } from "../components/common/DataTable";
 import { PageHeader } from "../components/common/PageHeader";
 import { StatusBadge } from "../components/common/StatusBadge";
-import { api, type WorkflowItem } from "../lib/api";
 
 export const Route = createFileRoute("/app/workflows")({ component: Workflows });
 
@@ -14,7 +13,7 @@ function prettyType(t: string): string {
 }
 
 function Workflows() {
-  const workflows = useQuery({ queryKey: ["workflows"], queryFn: api.listWorkflows });
+  const workflows = useWorkflows();
 
   const columns: Column<WorkflowItem>[] = [
     {

@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Bell, Building2, LogOut, Menu, Moon, Search, Sun } from "lucide-react";
 import { useState } from "react";
 
-import { api } from "../../lib/api";
+import { api } from "../../api";
 import { useSession } from "../../lib/session";
 import { useTheme } from "../../lib/theme";
 import {

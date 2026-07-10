@@ -1,24 +1,19 @@
-import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Cable, CheckCircle2, Clock, FileText, MessagesSquare, Workflow } from "lucide-react";
 
+import { useAuditEvents, useConnectors, useDocuments, useWorkflows } from "../api";
 import { PageHeader } from "../components/common/PageHeader";
 import { StatCard } from "../components/common/StatCard";
-import { api } from "../lib/api";
 import { useSession } from "../lib/session";
 
 export const Route = createFileRoute("/app/analytics")({ component: Analytics });
 
 function Analytics() {
   const { isManager } = useSession();
-  const workflows = useQuery({ queryKey: ["workflows"], queryFn: api.listWorkflows });
-  const documents = useQuery({ queryKey: ["documents"], queryFn: api.listDocuments });
-  const connectors = useQuery({ queryKey: ["connectors"], queryFn: api.listConnectors });
-  const audit = useQuery({
-    queryKey: ["audit", "all"],
-    queryFn: () => api.listAuditEvents({ limit: 500 }),
-    enabled: isManager,
-  });
+  const workflows = useWorkflows();
+  const documents = useDocuments();
+  const connectors = useConnectors();
+  const audit = useAuditEvents("all", 500, isManager);
 
   const wf = workflows.data ?? [];
   const decided = wf.filter((w) => w.decision);

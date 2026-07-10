@@ -15,6 +15,7 @@ dist-ssr
 .tanstack/**
 .nitro
 *.local
+*.tsbuildinfo
 
 # Local env (keep .env.example tracked)
 .env

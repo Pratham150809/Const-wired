@@ -1,18 +1,17 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { ClipboardCheck } from "lucide-react";
 import { useState } from "react";
 
+import { useDecideWorkflow, useWorkflows, type WorkflowItem } from "../api";
 import { PageHeader } from "../components/common/PageHeader";
 import { EmptyState, ErrorState, LoadingState } from "../components/common/states";
-import { api, type WorkflowItem } from "../lib/api";
 import { useSession } from "../lib/session";
 
 export const Route = createFileRoute("/app/approvals")({ component: Approvals });
 
 function Approvals() {
   const { isManager } = useSession();
-  const workflows = useQuery({ queryKey: ["workflows"], queryFn: api.listWorkflows });
+  const workflows = useWorkflows();
 
   const pending = (workflows.data ?? []).filter((w) => w.status === "awaiting_approval");
 
@@ -51,16 +50,8 @@ function Approvals() {
 }
 
 function ApprovalCard({ item, canDecide }: { item: WorkflowItem; canDecide: boolean }) {
-  const qc = useQueryClient();
   const [comment, setComment] = useState("");
-
-  const decide = useMutation({
-    mutationFn: ({ approve }: { approve: boolean }) =>
-      approve
-        ? api.approveWorkflow(item.workflow_id, comment)
-        : api.rejectWorkflow(item.workflow_id, comment),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["workflows"] }),
-  });
+  const decide = useDecideWorkflow();
 
   return (
     <div className="rounded-xl border border-border bg-card p-4">
@@ -95,14 +86,18 @@ function ApprovalCard({ item, canDecide }: { item: WorkflowItem; canDecide: bool
           />
           <div className="flex gap-2">
             <button
-              onClick={() => decide.mutate({ approve: true })}
+              onClick={() =>
+                decide.mutate({ workflowId: item.workflow_id, approve: true, comment })
+              }
               disabled={decide.isPending}
               className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
             >
               Approve
             </button>
             <button
-              onClick={() => decide.mutate({ approve: false })}
+              onClick={() =>
+                decide.mutate({ workflowId: item.workflow_id, approve: false, comment })
+              }
               disabled={decide.isPending}
               className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-sm font-semibold text-destructive transition hover:bg-destructive/20 disabled:opacity-60"
             >

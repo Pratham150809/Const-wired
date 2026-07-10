@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Bot, RefreshCw, Send, Sparkles, User } from "lucide-react";
 import { useRef, useState } from "react";
 
+import { api } from "../api";
 import { PageHeader } from "../components/common/PageHeader";
-import { api } from "../lib/api";
 
 export const Route = createFileRoute("/app/assistant")({ component: Assistant });
 
