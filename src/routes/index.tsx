@@ -420,48 +420,24 @@ const INTEGRATION_CATEGORIES: LandingIntegrationCategory[] = [
 
 const LANDING_INTEGRATIONS: LandingIntegration[] = [
   // ERP & Accounting
-  { slug: "quickbooks", name: "QuickBooks", domain: "quickbooks.intuit.com", category: "ERP & Accounting" },
-  { slug: "xero", name: "Xero", domain: "xero.com", category: "ERP & Accounting" },
   { slug: "netsuite", name: "NetSuite", domain: "netsuite.com", category: "ERP & Accounting" },
+  { slug: "sap", name: "SAP", domain: "sap.com", category: "ERP & Accounting" },
+  { slug: "oracle-fusion-ebs", name: "Oracle Fusion / EBS", domain: "oracle.com", category: "ERP & Accounting" },
+  { slug: "dynamics-365-finance", name: "Microsoft Dynamics 365 Finance", domain: "microsoft.com", category: "ERP & Accounting" },
+  { slug: "workday-financials", name: "Workday Financials", domain: "workday.com", category: "ERP & Accounting" },
   { slug: "sage-intacct", name: "Sage Intacct", domain: "sageintacct.com", category: "ERP & Accounting" },
-  { slug: "sage", name: "Sage", domain: "sage.com", category: "ERP & Accounting" },
-  { slug: "freshbooks", name: "FreshBooks", domain: "freshbooks.com", category: "ERP & Accounting" },
+  { slug: "blackline", name: "BlackLine", domain: "blackline.com", category: "ERP & Accounting" },
 
   // Payments & Banking
-  { slug: "bill", name: "BILL", domain: "bill.com", category: "Payments & Banking" },
-  { slug: "stripe", name: "Stripe", domain: "stripe.com", category: "Payments & Banking" },
-  { slug: "plaid", name: "Plaid", domain: "plaid.com", category: "Payments & Banking" },
-  { slug: "mercury", name: "Mercury", domain: "mercury.com", category: "Payments & Banking" },
-  { slug: "wise", name: "Wise", domain: "wise.com", category: "Payments & Banking" },
-  { slug: "melio", name: "Melio", domain: "meliopayments.com", category: "Payments & Banking" },
+  { slug: "bill", name: "BILL.com", domain: "bill.com", category: "Payments & Banking" },
 
   // Expense & Cards
-  { slug: "ramp", name: "Ramp", domain: "ramp.com", category: "Expense & Cards" },
-  { slug: "brex", name: "Brex", domain: "brex.com", category: "Expense & Cards" },
-  { slug: "expensify", name: "Expensify", domain: "expensify.com", category: "Expense & Cards" },
+  { slug: "coupa", name: "Coupa", domain: "coupa.com", category: "Expense & Cards" },
   { slug: "concur", name: "SAP Concur", domain: "concur.com", category: "Expense & Cards" },
-  { slug: "airbase", name: "Airbase", domain: "airbase.com", category: "Expense & Cards" },
-  { slug: "divvy", name: "BILL Spend", domain: "divvy.co", category: "Expense & Cards" },
 
   // Docs & Comms
-  {
-    slug: "gmail",
-    name: "Gmail",
-    domain: "gmail.com",
-    category: "Docs & Comms",
-    logo: "https://ssl.gstatic.com/images/branding/product/2x/gmail_2020q4_48dp.png",
-  },
-  { slug: "outlook", name: "Outlook", domain: "outlook.com", category: "Docs & Comms" },
-  {
-    slug: "gdrive",
-    name: "Google Drive",
-    domain: "drive.google.com",
-    category: "Docs & Comms",
-    logo: "https://ssl.gstatic.com/images/branding/product/2x/drive_2020q4_48dp.png",
-  },
-  { slug: "sharepoint", name: "SharePoint", domain: "sharepoint.com", category: "Docs & Comms" },
-  { slug: "dropbox", name: "Dropbox", domain: "dropbox.com", category: "Docs & Comms" },
-  { slug: "slack", name: "Slack", domain: "slack.com", category: "Docs & Comms" },
+  { slug: "salesforce", name: "Salesforce", domain: "salesforce.com", category: "Docs & Comms" },
+  { slug: "microsoft-365-excel", name: "Microsoft 365 / Excel", domain: "microsoft.com", category: "Docs & Comms" },
 ];
 
 // ---------------- Page ----------------
@@ -1293,11 +1269,10 @@ function IntegrationCatalog() {
             Integrations
           </span>
           <h2 className="mx-auto max-w-2xl text-3xl font-semibold tracking-tight md:text-4xl">
-            Connects to the tools your finance team already runs on.
+            12+ finance systems your copilots can talk to.
           </h2>
           <p className="mx-auto max-w-2xl text-sm text-muted-foreground">
-            Authenticate once, then read and post across your ERP, banks, payment rails, expense
-            tools, and document stores — no re-keying, no CSV exports.
+            Authenticate once. Read and act everywhere.
           </p>
         </div>
 
@@ -1321,7 +1296,7 @@ function IntegrationCatalog() {
                 className="h-12 w-12"
               />
               <div className="min-w-0">
-                <div className="truncate text-sm font-medium">{i.name}</div>
+                <div className="text-sm font-medium break-words">{i.name}</div>
                 <div className="text-[11px] text-muted-foreground">{i.category}</div>
               </div>
             </div>
