@@ -1,15 +1,15 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   ArrowRight,
+  BarChart3,
   Check,
   CheckCircle2,
   Clock,
   FileText,
+  Landmark,
   Mail,
-  MessageSquare,
   Moon,
-  Settings2,
-  Share2,
+  ScrollText,
   ShieldCheck,
   Sparkles,
   Sun,
@@ -24,8 +24,6 @@ import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ApiError, api } from "../api";
-import { CATEGORIES, INTEGRATIONS } from "../lib/catalog";
-import type { IntegrationCategory } from "../lib/catalog";
 import { IntegrationLogo } from "../components/common/IntegrationLogo";
 import { LogoLockup } from "../components/common/LogoLockup";
 import { setStoredIndustry } from "../lib/industries";
@@ -38,212 +36,37 @@ export const Route = createFileRoute("/")({
 
 // ---------------- Content config ----------------
 
-type Connector = { name: string; use: string; domain?: string };
-type Workflow = {
+type WorkflowStep = { label: string; detail: string };
+type WorkflowContent = {
   title: string;
   before: string;
   after: string;
-  steps: { label: string; detail: string }[];
-};
-type IndustryContent = {
-  heroTagline: string;
-  heroSub: string;
-  workflow: Workflow;
-  connectors: {
-    nango: Connector[];
-    composio: Connector[];
-    fallback?: boolean;
-  };
+  steps: WorkflowStep[];
 };
 
-const INDUSTRIES: { slug: string; label: string; blurb: string; icon: string }[] = [
-  { slug: "common", label: "All industries", blurb: "See the shared platform view", icon: "◎" },
-  { slug: "accounting", label: "Accounting", blurb: "Invoices, ledger, close", icon: "₵" },
-  { slug: "banking", label: "Banking", blurb: "Ops, KYC, servicing", icon: "🏦" },
-  { slug: "construction", label: "Construction", blurb: "RFIs, drawings, schedules", icon: "⌂" },
-  { slug: "hr", label: "HR & ATS", blurb: "Hiring, onboarding, payroll", icon: "❖" },
-  { slug: "productivity", label: "Productivity", blurb: "Docs, tasks, calendars", icon: "✎" },
-];
-
-const INDUSTRY_CONTENT: Record<string, IndustryContent> = {
-  common: {
-    heroTagline: "One AI operating system. Every line of business.",
-    heroSub:
-      "A shared core — identity, chat, workflow engine, document intelligence, connector hub — with copilots tuned to how your industry actually works.",
-    workflow: {
-      title: "A generic 45–60 min task, done in 5–10.",
-      before: "Manual triage across email, files, and 3+ business systems.",
-      after: "AI drafts, checks, and executes. A human reviews and approves.",
-      steps: [
-        { label: "Intake", detail: "An email, file, or chat message comes in." },
-        { label: "Parse", detail: "Document intelligence extracts the key data." },
-        { label: "Enrich", detail: "Connectors pull context from your systems." },
-        { label: "Draft", detail: "AI drafts the response, record, or action." },
-        { label: "Approve", detail: "A human reviews the draft and approves it." },
-        { label: "Execute", detail: "The action is written back to your system." },
-      ],
-    },
-    connectors: {
-      fallback: true,
-      nango: [
-        { name: "Email & Calendar", use: "Read, send, and schedule across your inbox." },
-        { name: "File Storage", use: "Access documents from your team drive." },
-      ],
-      composio: [
-        {
-          name: "Line-of-Business System",
-          use: "Bring your own — we scope the integration with you.",
-        },
-      ],
-    },
-  },
-  accounting: {
-    heroTagline: "AI that closes the books faster.",
-    heroSub:
-      "Invoice processing, vendor lookups, duplicate checks, and ledger updates — drafted by AI, approved by your controller.",
-    workflow: {
-      title: "Invoice Processing & Approval Copilot",
-      before: "45+ minutes per invoice across email, drive, and ERP.",
-      after: "5 minutes: review, approve, done.",
-      steps: [
-        { label: "Vendor emails invoice", detail: "Nango retrieves the message and attachment." },
-        { label: "OCR extracts data", detail: "Line items, totals, and vendor info parsed." },
-        {
-          label: "Composio checks records",
-          detail: "Vendor lookup + duplicate flag against QuickBooks/Xero.",
-        },
-        {
-          label: "AI drafts validation",
-          detail: "Summary of matches, mismatches, and policy issues.",
-        },
-        { label: "Human approves", detail: "Controller clicks approve in one screen." },
-        {
-          label: "Composio posts entry",
-          detail: "Invoice created and confirmation emailed via Nango.",
-        },
-      ],
-    },
-    connectors: {
-      nango: [
-        { name: "Outlook", use: "Retrieve vendor invoices from shared inbox." },
-        { name: "Gmail", use: "Retrieve vendor invoices and send confirmations." },
-        { name: "Microsoft 365", use: "Auth and identity for the finance team." },
-        { name: "Google Drive", use: "Access invoice PDFs and receipts." },
-        { name: "Microsoft Teams", use: "Post approval requests to a finance channel." },
-        { name: "Calendar", use: "Schedule close and approval deadlines." },
-      ],
-      composio: [
-        { name: "QuickBooks", use: "Create invoices, vendors, and journal entries." },
-        { name: "Xero", use: "Ledger and journal retrieval, invoice posting." },
-        { name: "CRM tools", use: "Cross-reference customers with A/R records." },
-        { name: "ERP systems", use: "Sync invoices to your ERP of record." },
-        { name: "Expense management", use: "Policy checks against submitted expenses." },
-      ],
-    },
-  },
-  legal: {
-    heroTagline: "AI that reads the contract before you do.",
-    heroSub:
-      "Matter intake, contract review, and playbook checks — drafted by AI, sent back over your existing systems.",
-    workflow: {
-      title: "Contract Review Copilot",
-      before: "60+ minutes reading and comparing against the playbook.",
-      after: "10 minutes: read the summary, adjust, send.",
-      steps: [
-        { label: "Contract arrives", detail: "Nango pulls the attachment from email." },
-        { label: "OCR parses it", detail: "Clauses, parties, and dates extracted." },
-        {
-          label: "Composio pulls precedent",
-          detail: "Prior matters and the firm's playbook loaded.",
-        },
-        { label: "AI flags risk", detail: "Missing clauses, deviations, and red-flag terms." },
-        { label: "Lawyer reviews", detail: "Summary + inline suggestions in one view." },
-        {
-          label: "Nango sends it back",
-          detail: "Reviewed contract returned via Outlook or Gmail.",
-        },
-      ],
-    },
-    connectors: {
-      nango: [
-        { name: "Outlook", use: "Retrieve incoming contracts and correspondence." },
-        { name: "Gmail", use: "Retrieve contracts and send replies." },
-        { name: "Microsoft Teams", use: "Coordinate matter teams." },
-        { name: "SharePoint", use: "Access matter document libraries." },
-        { name: "Google Drive", use: "Access shared client folders." },
-        { name: "OneDrive", use: "Access personal matter folders." },
-        { name: "Google Calendar", use: "Schedule filings and depositions." },
-      ],
-      composio: [
-        { name: "Clio", use: "Matter management and time capture." },
-        { name: "MyCase", use: "Client and matter records." },
-        { name: "PracticePanther", use: "Matter and billing actions." },
-        { name: "Ironclad", use: "Contract lifecycle actions." },
-        { name: "DocuSign", use: "E-signature status and send." },
-        { name: "Notion", use: "Playbook and knowledge base." },
-        { name: "Jira", use: "Task tracking for matter workstreams." },
-        { name: "Asana", use: "Matter task workflows." },
-        { name: "Monday.com", use: "Matter pipelines and intake." },
-      ],
-    },
-  },
-  construction: {
-    heroTagline: "AI that answers the RFI before the site does.",
-    heroSub:
-      "RFI response, submittal tracking, and change-order drafting — grounded in your drawings, schedules, and PM system.",
-    workflow: {
-      title: "RFI Copilot",
-      before: "A PM chasing drawings, schedules, and spec sections for hours.",
-      after: "Draft response ready in minutes, PM approves and sends.",
-      steps: [
-        { label: "Contractor raises RFI", detail: "Nango retrieves the email or Teams message." },
-        {
-          label: "Docs parsed",
-          detail: "OCR + document intelligence read attachments and drawings.",
-        },
-        {
-          label: "Composio pulls project data",
-          detail: "Drawings, schedules, and specs from Procore/ACC.",
-        },
-        {
-          label: "AI drafts a response",
-          detail: "Grounded in the project record, cites drawing refs.",
-        },
-        { label: "PM approves", detail: "One-click approval with edits inline." },
-        { label: "Nango sends reply", detail: "Response goes back over email or Teams." },
-      ],
-    },
-    connectors: {
-      nango: [
-        { name: "Outlook", use: "Retrieve RFIs and submittals from email." },
-        { name: "Gmail", use: "Retrieve RFIs and send responses." },
-        { name: "Microsoft Teams", use: "Read and post in project channels." },
-        { name: "SharePoint", use: "Access project drawing sets." },
-        { name: "Google Drive", use: "Access shared project folders." },
-        { name: "OneDrive", use: "Access personal drawing folders." },
-      ],
-      composio: [
-        { name: "Procore", use: "RFIs, submittals, and change orders." },
-        { name: "Autodesk Construction Cloud", use: "Drawings and model coordination." },
-        { name: "Oracle Primavera P6", use: "Master schedule lookups." },
-        { name: "Buildertrend", use: "Residential project actions." },
-        { name: "Monday.com", use: "Project pipelines and punch lists." },
-        { name: "Asana", use: "Task tracking across trades." },
-        { name: "Jira", use: "Issue tracking for tech-heavy builds." },
-        { name: "ClickUp", use: "Project management workspaces." },
-        { name: "Smartsheet", use: "Schedules, budgets, and trackers." },
-      ],
-    },
-  },
+const HERO = {
+  tagline: "The AI operating system for accounting.",
+  sub: "Automate AP/AR, bank reconciliation, expense management, and the month-end close. AI does the busywork and drafts every entry — your controller reviews and approves before anything posts.",
 };
 
-function getContent(slug: string): IndustryContent {
-  return INDUSTRY_CONTENT[slug] ?? INDUSTRY_CONTENT.common;
-}
+// The single, accounting-specific workflow shown in the before/after section.
+const CLOSE_WORKFLOW: WorkflowContent = {
+  title: "Invoice-to-approval, done in minutes.",
+  before: "45+ minutes per invoice, keying data across email, drive, and your ERP.",
+  after: "5 minutes: AI extracts, matches, and validates — you review and approve.",
+  steps: [
+    { label: "Invoice arrives", detail: "A vendor emails an invoice into your AP inbox." },
+    { label: "Extract", detail: "Document intelligence reads line items, totals, and tax." },
+    { label: "Match", detail: "3-way match against PO and receipt; duplicate check." },
+    { label: "Validate", detail: "GL coding, approval routing, and policy checks applied." },
+    { label: "Approve", detail: "Your controller reviews the draft and approves in one click." },
+    { label: "Post", detail: "Journal entry written back to QuickBooks, Xero, or NetSuite." },
+  ],
+};
 
 // ---------------- Copilot library (interactive catalog) ----------------
 
-type CopilotGroup = "accounting" | "construction" | "legal";
+type CopilotGroup = "apar" | "close" | "compliance";
 
 type Copilot = {
   group: CopilotGroup;
@@ -262,82 +85,211 @@ type Copilot = {
 
 const COPILOT_GROUPS: { slug: CopilotGroup | "all"; label: string }[] = [
   { slug: "all", label: "All" },
-  { slug: "accounting", label: "Accounting" },
-  { slug: "construction", label: "Construction" },
-  { slug: "legal", label: "Legal" },
+  { slug: "apar", label: "AP / AR" },
+  { slug: "close", label: "Close & Reporting" },
+  { slug: "compliance", label: "Compliance & Audit" },
 ];
 
 const GROUP_META: Record<CopilotGroup, { label: string; accent: string }> = {
-  // Accent is applied as an inline text color so each family reads distinctly
+  // Restrained, finance-appropriate accents so each family reads distinctly
   // without leaving the neutral theme.
-  accounting: { label: "Accounting", accent: "#4f9dde" },
-  construction: { label: "Construction", accent: "#e0912f" },
-  legal: { label: "Legal", accent: "#a988e6" },
+  apar: { label: "AP / AR", accent: "#4f9dde" },
+  close: { label: "Close & Reporting", accent: "#3f9a7f" },
+  compliance: { label: "Compliance & Audit", accent: "#8a7fd0" },
 };
 
 const COPILOTS: Copilot[] = [
   {
-    group: "accounting",
-    label: "Accounting",
-    title: "Invoice Processing & Approval Copilot",
-    goal: "Validate supplier invoices, catch duplicates, and route them for finance approval.",
+    group: "apar",
+    label: "AP / AR",
+    title: "Invoice Processing & AP Approval Copilot",
+    goal: "Validate supplier invoices, run a 3-way match, catch duplicates, and route them for approval.",
     persona: "AP Accountant",
-    approver: "Finance Manager",
-    trigger: "A supplier sends an invoice to your inbox.",
+    approver: "Controller",
+    trigger: "A supplier emails an invoice to your AP inbox.",
     actions: [
-      "Reads and extracts invoice details automatically",
-      "Matches the invoice to the right vendor",
-      "Checks for duplicate or repeat invoices",
-      "Flags missing or unusual information",
+      "Extracts line items, totals, and tax automatically",
+      "Matches the invoice to its PO and goods receipt",
+      "Flags duplicates and out-of-policy amounts",
+      "Applies GL coding and routes for approval",
       "Writes a plain-language validation summary",
     ],
     value: [
-      "Fewer manual entries",
-      "Duplicate invoices caught before payment",
+      "No manual data entry",
+      "Duplicate and overbilling caught before payment",
       "Faster approval cycles",
-      "More consistent invoice accuracy",
+      "A clean, defensible audit trail",
     ],
     runtime: "2m 41s",
     trace: [
-      { kind: "run", text: "starting connector…" },
-      { kind: "ok", text: "reading inbox" },
+      { kind: "run", text: "connecting to AP inbox…" },
       { kind: "ok", text: "reading invoice_0417.pdf" },
-      { kind: "ok", text: "matched to vendor: Acme Supplies" },
+      { kind: "ok", text: "matched vendor: Acme Supplies" },
+      { kind: "ok", text: "3-way match: PO-2214 ✓ receipt ✓" },
       { kind: "ok", text: "no duplicate found" },
-      { kind: "ok", text: "validation summary ready" },
-      { kind: "wait", text: "waiting on approval (Finance Manager)" },
+      { kind: "ok", text: "GL coded · validation summary ready" },
+      { kind: "wait", text: "waiting on approval (Controller)" },
       { kind: "ok", text: "approved by A. Reyes" },
-      { kind: "ok", text: "invoice created · confirmation sent" },
+      { kind: "ok", text: "posted to QuickBooks · confirmation sent" },
       { kind: "done", text: "done in 2m 41s" },
     ],
   },
   {
-    group: "accounting",
-    label: "Accounting",
+    group: "apar",
+    label: "AP / AR",
+    title: "AR Collections & Dunning Copilot",
+    goal: "Prioritize overdue receivables and draft personalized collection emails for your review.",
+    persona: "AR Specialist",
+    approver: "Controller",
+    trigger: "An invoice passes its due date, or on your weekly AR run.",
+    actions: [
+      "Pulls the aging report and ranks accounts by risk",
+      "Reconciles payments already received",
+      "Drafts a tailored reminder per customer and stage",
+      "Suggests next steps for high-risk accounts",
+      "Logs every touch against the customer record",
+    ],
+    value: [
+      "Lower DSO",
+      "Consistent, on-time follow-up",
+      "Less time chasing payments",
+      "Earlier warning on at-risk accounts",
+    ],
+    runtime: "1m 48s",
+    trace: [
+      { kind: "run", text: "connecting to ERP…" },
+      { kind: "ok", text: "aging report pulled · 37 open invoices" },
+      { kind: "ok", text: "payments reconciled" },
+      { kind: "ok", text: "12 reminders drafted by stage" },
+      { kind: "ok", text: "2 accounts flagged high-risk" },
+      { kind: "wait", text: "waiting on approval (Controller)" },
+      { kind: "ok", text: "approved · reminders queued to send" },
+      { kind: "done", text: "done in 1m 48s" },
+    ],
+  },
+  {
+    group: "apar",
+    label: "AP / AR",
+    title: "Vendor Onboarding & W-9 Copilot",
+    goal: "Collect and verify new-vendor details, tax forms, and bank info before the first payment.",
+    persona: "AP Accountant",
+    approver: "Finance Manager",
+    trigger: "A team member requests a new vendor be set up.",
+    actions: [
+      "Requests and reads the W-9 and banking details",
+      "Validates TIN and checks for duplicate vendors",
+      "Screens against sanctions and denied-party lists",
+      "Drafts the vendor master record for review",
+    ],
+    value: [
+      "Fewer payment errors and fraud risk",
+      "No duplicate vendor records",
+      "Faster, compliant onboarding",
+      "Complete documentation on file",
+    ],
+    runtime: "2m 12s",
+    trace: [
+      { kind: "run", text: "connecting to email + ERP…" },
+      { kind: "ok", text: "W-9 received and parsed" },
+      { kind: "ok", text: "TIN validated · no duplicate vendor" },
+      { kind: "ok", text: "sanctions screen clean" },
+      { kind: "ok", text: "vendor record drafted" },
+      { kind: "wait", text: "waiting on approval (Finance Manager)" },
+      { kind: "done", text: "done in 2m 12s" },
+    ],
+  },
+  {
+    group: "close",
+    label: "Close & Reporting",
+    title: "Bank Reconciliation Copilot",
+    goal: "Match bank transactions to your ledger and surface only the exceptions that need you.",
+    persona: "Staff Accountant",
+    approver: "Controller",
+    trigger: "A bank feed syncs, or you start a period-end reconciliation.",
+    actions: [
+      "Pulls bank transactions and ledger entries",
+      "Auto-matches by amount, date, and reference",
+      "Groups and explains the unmatched exceptions",
+      "Proposes journal entries for fees and interest",
+      "Writes a reconciliation summary with the balance",
+    ],
+    value: [
+      "Reconciliations in minutes, not hours",
+      "Only true exceptions reach your desk",
+      "Fewer month-end surprises",
+      "A documented, reviewable match trail",
+    ],
+    runtime: "2m 20s",
+    trace: [
+      { kind: "run", text: "connecting to bank feed…" },
+      { kind: "ok", text: "412 transactions pulled" },
+      { kind: "ok", text: "398 auto-matched (96.6%)" },
+      { kind: "ok", text: "14 exceptions grouped" },
+      { kind: "ok", text: "2 fee entries proposed" },
+      { kind: "wait", text: "waiting on approval (Controller)" },
+      { kind: "ok", text: "approved · reconciliation closed" },
+      { kind: "done", text: "done in 2m 20s" },
+    ],
+  },
+  {
+    group: "close",
+    label: "Close & Reporting",
+    title: "Month-End Close Copilot",
+    goal: "Run the close checklist, prepare accruals and reconciliations, and track what's outstanding.",
+    persona: "Financial Controller",
+    approver: "CFO",
+    trigger: "You kick off the close for the period.",
+    actions: [
+      "Works the close checklist task by task",
+      "Prepares recurring accruals and prepaid schedules",
+      "Reconciles key balance-sheet accounts",
+      "Flags variances against prior period and budget",
+      "Reports what's blocking the close in real time",
+    ],
+    value: [
+      "A faster, more predictable close",
+      "Nothing falls through the cracks",
+      "Fewer late adjusting entries",
+      "Clear status for the whole team",
+    ],
+    runtime: "4m 02s",
+    trace: [
+      { kind: "run", text: "loading close checklist…" },
+      { kind: "ok", text: "18 of 24 tasks automated" },
+      { kind: "ok", text: "accruals + prepaids prepared" },
+      { kind: "ok", text: "balance-sheet accounts reconciled" },
+      { kind: "ok", text: "3 variances flagged" },
+      { kind: "wait", text: "waiting on approval (CFO)" },
+      { kind: "done", text: "done in 4m 02s" },
+    ],
+  },
+  {
+    group: "close",
+    label: "Close & Reporting",
     title: "Financial Reporting Copilot",
-    goal: "Turn raw ledger data into an executive-ready report, complete with commentary.",
+    goal: "Turn ledger data into an executive-ready report with variance commentary.",
     persona: "Financial Controller",
     approver: "CFO",
     trigger: "You choose a reporting period from the dashboard.",
     actions: [
-      "Pulls the latest financial and budget data",
-      "Compares actuals against budget",
-      "Calculates key financial metrics",
+      "Pulls the latest actuals and budget data",
+      "Builds P&L, balance sheet, and cash flow",
+      "Compares actuals against budget and prior period",
       "Flags unusual trends automatically",
       "Writes an executive summary in plain language",
     ],
     value: [
-      "Faster month-end reporting",
+      "Faster board and management reporting",
       "Consistent, ready-to-send insights",
       "Less time in spreadsheets",
       "Earlier visibility into variances",
     ],
     runtime: "3m 05s",
     trace: [
-      { kind: "run", text: "starting connector…" },
-      { kind: "ok", text: "pulling ledger + budget data" },
-      { kind: "ok", text: "actuals vs budget computed" },
-      { kind: "ok", text: "3 variances flagged" },
+      { kind: "run", text: "connecting to ERP…" },
+      { kind: "ok", text: "actuals + budget pulled" },
+      { kind: "ok", text: "P&L, BS, cash flow built" },
+      { kind: "ok", text: "3 variances flagged with commentary" },
       { kind: "ok", text: "executive summary drafted" },
       { kind: "wait", text: "waiting on approval (CFO)" },
       { kind: "ok", text: "approved by J. Lin" },
@@ -345,32 +297,32 @@ const COPILOTS: Copilot[] = [
     ],
   },
   {
-    group: "accounting",
-    label: "Accounting",
+    group: "compliance",
+    label: "Compliance & Audit",
     title: "Expense Audit Copilot",
     goal: "Check employee expense claims against policy before you reimburse them.",
     persona: "Expense Auditor",
     approver: "Finance Manager",
-    trigger: "An employee uploads a receipt or expense claim.",
+    trigger: "An employee submits a receipt or expense report.",
     actions: [
       "Reads receipts and expense details automatically",
-      "Checks the merchant, amount, and category",
-      "Flags duplicate claims",
-      "Checks the claim against company policy",
+      "Verifies merchant, amount, and category",
+      "Flags duplicate and split claims",
+      "Checks each line against company policy",
       "Writes a short audit summary",
     ],
     value: [
       "Lower reimbursement fraud risk",
-      "Policies applied the same way every time",
-      "Faster approvals for employees",
-      "Cleaner records if you're ever audited",
+      "Policy applied the same way every time",
+      "Faster reimbursements for employees",
+      "Cleaner records for audit",
     ],
     runtime: "1m 22s",
     trace: [
-      { kind: "run", text: "starting connector…" },
+      { kind: "run", text: "connecting to expense tool…" },
       { kind: "ok", text: "reading receipt_travel.jpg" },
       { kind: "ok", text: "merchant + amount extracted" },
-      { kind: "ok", text: "policy check passed" },
+      { kind: "ok", text: "no duplicate · policy check passed" },
       { kind: "ok", text: "audit summary ready" },
       { kind: "wait", text: "waiting on approval (Finance Manager)" },
       { kind: "ok", text: "approved · reimbursement queued" },
@@ -378,296 +330,138 @@ const COPILOTS: Copilot[] = [
     ],
   },
   {
-    group: "construction",
-    label: "Construction",
-    title: "RFI Copilot",
-    goal: "Draft technical responses to contractor questions using your drawings and project history.",
-    persona: "Project Engineer",
-    approver: "Project Manager",
-    trigger: "A contractor submits a question by email or Teams.",
+    group: "compliance",
+    label: "Compliance & Audit",
+    title: "Audit Preparation Copilot",
+    goal: "Assemble the PBC list, pull support, and tie balances to source before the auditors arrive.",
+    persona: "Assistant Controller",
+    approver: "Controller",
+    trigger: "You start prep for an external or internal audit.",
     actions: [
-      "Reads the incoming question and any attachments",
-      "Pulls the relevant drawings automatically",
-      "Looks up how similar questions were answered before",
-      "Writes a technical summary of the issue",
-      "Drafts a response ready for review",
+      "Builds the PBC request list from the trial balance",
+      "Gathers invoices, statements, and contracts as support",
+      "Ties account balances back to source documents",
+      "Flags gaps and missing documentation",
+      "Packages everything into an auditor-ready workpaper set",
     ],
     value: [
-      "Faster answers to the field",
-      "Fewer project delays",
-      "A written record of every decision",
-      "Consistent, accurate technical answers",
+      "Weeks of prep compressed into days",
+      "No last-minute document scrambles",
+      "Every balance traceable to support",
+      "A smoother, cheaper audit",
     ],
-    runtime: "4m 12s",
+    runtime: "5m 30s",
     trace: [
-      { kind: "run", text: "starting connector…" },
-      { kind: "ok", text: "reading Teams message" },
-      { kind: "ok", text: "drawings downloaded" },
-      { kind: "ok", text: "matched project record" },
-      { kind: "ok", text: "technical summary ready" },
-      { kind: "ok", text: "draft response ready" },
-      { kind: "wait", text: "waiting on approval (Project Manager)" },
-      { kind: "ok", text: "approved by K. Malik · reply sent" },
-      { kind: "done", text: "done in 4m 12s" },
+      { kind: "run", text: "loading trial balance…" },
+      { kind: "ok", text: "PBC list generated · 46 items" },
+      { kind: "ok", text: "support gathered for 41 items" },
+      { kind: "ok", text: "balances tied to source" },
+      { kind: "ok", text: "5 gaps flagged for follow-up" },
+      { kind: "wait", text: "waiting on approval (Controller)" },
+      { kind: "done", text: "done in 5m 30s" },
     ],
   },
   {
-    group: "construction",
-    label: "Construction",
-    title: "Change Order Copilot",
-    goal: "Estimate the cost and schedule impact of a change request before anyone signs off.",
-    persona: "Project Manager",
-    approver: "Client Representative",
-    trigger: "A contractor or client submits a change request.",
+    group: "compliance",
+    label: "Compliance & Audit",
+    title: "Sales Tax & Compliance Copilot",
+    goal: "Check transactions for correct tax treatment and prepare filings for your review.",
+    persona: "Tax Accountant",
+    approver: "Controller",
+    trigger: "On a filing deadline, or when new transactions sync.",
     actions: [
-      "Reads the requested change and supporting documents",
-      "Compares it against the current budget and schedule",
-      "Calculates the likely cost impact",
-      "Estimates any schedule delay",
-      "Writes a plain-language change order summary",
+      "Reviews transactions for nexus and taxability",
+      "Recalculates tax by jurisdiction",
+      "Flags mis-charged or exempt transactions",
+      "Prepares the return with supporting detail",
+      "Summarizes what changed since last period",
     ],
     value: [
-      "Faster change order turnaround",
-      "More accurate cost estimates",
-      "Fewer disputes down the line",
-      "Tighter budget control",
+      "Lower risk of penalties and interest",
+      "Consistent treatment across jurisdictions",
+      "Filings prepared, not just calculated",
+      "A documented compliance trail",
     ],
-    runtime: "3m 40s",
+    runtime: "3m 14s",
     trace: [
-      { kind: "run", text: "starting connector…" },
-      { kind: "ok", text: "reading change request" },
-      { kind: "ok", text: "compared vs budget + schedule" },
-      { kind: "ok", text: "cost impact: +$18,400" },
-      { kind: "ok", text: "schedule impact: +4 days" },
-      { kind: "wait", text: "waiting on approval (Client Rep)" },
-      { kind: "ok", text: "approved · CO logged" },
-      { kind: "done", text: "done in 3m 40s" },
+      { kind: "run", text: "connecting to ERP…" },
+      { kind: "ok", text: "transactions reviewed for nexus" },
+      { kind: "ok", text: "tax recalculated by jurisdiction" },
+      { kind: "ok", text: "4 mis-charged transactions flagged" },
+      { kind: "ok", text: "return prepared with detail" },
+      { kind: "wait", text: "waiting on approval (Controller)" },
+      { kind: "done", text: "done in 3m 14s" },
     ],
   },
+];
+
+// ---------------- Integrations (accounting-focused) ----------------
+
+type LandingIntegrationCategory =
+  | "ERP & Accounting"
+  | "Payments & Banking"
+  | "Expense & Cards"
+  | "Docs & Comms";
+
+type LandingIntegration = {
+  slug: string;
+  name: string;
+  domain: string;
+  category: LandingIntegrationCategory;
+  logo?: string;
+};
+
+const INTEGRATION_CATEGORIES: LandingIntegrationCategory[] = [
+  "ERP & Accounting",
+  "Payments & Banking",
+  "Expense & Cards",
+  "Docs & Comms",
+];
+
+const LANDING_INTEGRATIONS: LandingIntegration[] = [
+  // ERP & Accounting
+  { slug: "quickbooks", name: "QuickBooks", domain: "quickbooks.intuit.com", category: "ERP & Accounting" },
+  { slug: "xero", name: "Xero", domain: "xero.com", category: "ERP & Accounting" },
+  { slug: "netsuite", name: "NetSuite", domain: "netsuite.com", category: "ERP & Accounting" },
+  { slug: "sage-intacct", name: "Sage Intacct", domain: "sageintacct.com", category: "ERP & Accounting" },
+  { slug: "sage", name: "Sage", domain: "sage.com", category: "ERP & Accounting" },
+  { slug: "freshbooks", name: "FreshBooks", domain: "freshbooks.com", category: "ERP & Accounting" },
+
+  // Payments & Banking
+  { slug: "bill", name: "BILL", domain: "bill.com", category: "Payments & Banking" },
+  { slug: "stripe", name: "Stripe", domain: "stripe.com", category: "Payments & Banking" },
+  { slug: "plaid", name: "Plaid", domain: "plaid.com", category: "Payments & Banking" },
+  { slug: "mercury", name: "Mercury", domain: "mercury.com", category: "Payments & Banking" },
+  { slug: "wise", name: "Wise", domain: "wise.com", category: "Payments & Banking" },
+  { slug: "melio", name: "Melio", domain: "meliopayments.com", category: "Payments & Banking" },
+
+  // Expense & Cards
+  { slug: "ramp", name: "Ramp", domain: "ramp.com", category: "Expense & Cards" },
+  { slug: "brex", name: "Brex", domain: "brex.com", category: "Expense & Cards" },
+  { slug: "expensify", name: "Expensify", domain: "expensify.com", category: "Expense & Cards" },
+  { slug: "concur", name: "SAP Concur", domain: "concur.com", category: "Expense & Cards" },
+  { slug: "airbase", name: "Airbase", domain: "airbase.com", category: "Expense & Cards" },
+  { slug: "divvy", name: "BILL Spend", domain: "divvy.co", category: "Expense & Cards" },
+
+  // Docs & Comms
   {
-    group: "construction",
-    label: "Construction",
-    title: "Daily Site Report Copilot",
-    goal: "Turn the day's photos, notes, and task updates into a finished progress report.",
-    persona: "Site Engineer",
-    approver: "Project Manager",
-    trigger: "End of the workday, automatically.",
-    actions: [
-      "Collects the day's emails and site photos",
-      "Reads handwritten notes on photos",
-      "Pulls task and equipment status",
-      "Summarizes work completed and any delays",
-      "Flags any safety issues that came up",
-    ],
-    value: [
-      "Minutes instead of an hour of paperwork",
-      "Consistent daily reporting",
-      "Earlier visibility into delays",
-      "Better safety tracking",
-    ],
-    runtime: "2m 08s",
-    trace: [
-      { kind: "run", text: "starting connector…" },
-      { kind: "ok", text: "collected 24 site photos" },
-      { kind: "ok", text: "handwritten notes parsed" },
-      { kind: "ok", text: "task + equipment status pulled" },
-      { kind: "ok", text: "1 safety issue flagged" },
-      { kind: "ok", text: "progress report drafted" },
-      { kind: "wait", text: "waiting on approval (Project Manager)" },
-      { kind: "done", text: "done in 2m 08s" },
-    ],
+    slug: "gmail",
+    name: "Gmail",
+    domain: "gmail.com",
+    category: "Docs & Comms",
+    logo: "https://ssl.gstatic.com/images/branding/product/2x/gmail_2020q4_48dp.png",
   },
+  { slug: "outlook", name: "Outlook", domain: "outlook.com", category: "Docs & Comms" },
   {
-    group: "construction",
-    label: "Construction",
-    title: "Subcontractor Invoice Verification",
-    goal: "Check subcontractor invoices against completed work before you approve payment.",
-    persona: "Project Accountant",
-    approver: "Finance Manager",
-    trigger: "A subcontractor sends an invoice.",
-    actions: [
-      "Reads invoice details automatically",
-      "Matches it to the original purchase order",
-      "Compares it against completed work on site",
-      "Flags any overbilling",
-      "Writes a short discrepancy report",
-    ],
-    value: [
-      "Less risk of overpaying",
-      "Faster invoice-to-payment time",
-      "Stronger subcontractor relationships",
-      "A clean audit trail",
-    ],
-    runtime: "2m 55s",
-    trace: [
-      { kind: "run", text: "starting connector…" },
-      { kind: "ok", text: "reading subcontractor invoice" },
-      { kind: "ok", text: "matched to PO-2214" },
-      { kind: "ok", text: "compared vs completed work" },
-      { kind: "ok", text: "overbilling flagged: 2 line items" },
-      { kind: "wait", text: "waiting on approval (Finance Manager)" },
-      { kind: "done", text: "done in 2m 55s" },
-    ],
+    slug: "gdrive",
+    name: "Google Drive",
+    domain: "drive.google.com",
+    category: "Docs & Comms",
+    logo: "https://ssl.gstatic.com/images/branding/product/2x/drive_2020q4_48dp.png",
   },
-  {
-    group: "legal",
-    label: "Legal",
-    title: "Contract Review Copilot",
-    goal: "Flag risky or non-standard clauses and prepare a redline before you review it yourself.",
-    persona: "Legal Counsel",
-    approver: "Senior Counsel",
-    trigger: "A contract lands in your inbox or contract system.",
-    actions: [
-      "Reads the contract and extracts key terms",
-      "Compares clauses against your standard playbook",
-      "Flags risky or missing clauses",
-      "Prepares a redline with suggested edits",
-      "Writes a summary of the key commercial terms",
-    ],
-    value: [
-      "Faster contract turnaround",
-      "Consistent risk review every time",
-      "Fewer surprises after signing",
-      "Faster deal cycles",
-    ],
-    runtime: "5m 06s",
-    trace: [
-      { kind: "run", text: "starting connector…" },
-      { kind: "ok", text: "reading MSA_v3.docx" },
-      { kind: "ok", text: "key terms extracted" },
-      { kind: "ok", text: "compared vs playbook" },
-      { kind: "ok", text: "4 clauses flagged" },
-      { kind: "ok", text: "redline prepared" },
-      { kind: "wait", text: "waiting on approval (Senior Counsel)" },
-      { kind: "done", text: "done in 5m 06s" },
-    ],
-  },
-  {
-    group: "legal",
-    label: "Legal",
-    title: "Legal Matter Intake Copilot",
-    goal: "Classify, conflict-check, and route new legal requests to the right person automatically.",
-    persona: "Legal Operations Manager",
-    approver: "Partner",
-    trigger: "A new matter request comes in by form or email.",
-    actions: [
-      "Classifies the type and urgency of the request",
-      "Runs an automatic conflict check",
-      "Recommends who should handle it",
-      "Writes a short intake summary",
-    ],
-    value: [
-      "Faster onboarding for new matters",
-      "Less administrative back-and-forth",
-      "More accurate conflict checks",
-      "Better-balanced workloads",
-    ],
-    runtime: "1m 34s",
-    trace: [
-      { kind: "run", text: "starting connector…" },
-      { kind: "ok", text: "classified: commercial · high urgency" },
-      { kind: "ok", text: "conflict check clean" },
-      { kind: "ok", text: "routed to M. Cho" },
-      { kind: "wait", text: "waiting on approval (Partner)" },
-      { kind: "done", text: "done in 1m 34s" },
-    ],
-  },
-  {
-    group: "legal",
-    label: "Legal",
-    title: "Litigation Document Assistant",
-    goal: "Organize case documents and draft a first pass at the facts, ready for attorney review.",
-    persona: "Litigation Associate",
-    approver: "Senior Attorney",
-    trigger: "New discovery documents or a filing come in.",
-    actions: [
-      "Reads through new documents and filings",
-      "Pulls out key facts, dates, and names",
-      "Builds a chronology of the case",
-      "Flags anything inconsistent across documents",
-      "Drafts a first-pass summary",
-    ],
-    value: [
-      "Faster document review",
-      "Fewer billable hours on basic organization",
-      "A clearer case timeline",
-      "Consistent fact-finding across the team",
-    ],
-    runtime: "6m 18s",
-    trace: [
-      { kind: "run", text: "starting connector…" },
-      { kind: "ok", text: "reading 42 discovery docs" },
-      { kind: "ok", text: "facts, dates, names extracted" },
-      { kind: "ok", text: "chronology built" },
-      { kind: "ok", text: "2 inconsistencies flagged" },
-      { kind: "wait", text: "waiting on approval (Senior Attorney)" },
-      { kind: "done", text: "done in 6m 18s" },
-    ],
-  },
-  {
-    group: "legal",
-    label: "Legal",
-    title: "Compliance Review Copilot",
-    goal: "Check a policy, process, or piece of marketing against your regulatory requirements.",
-    persona: "Compliance Officer",
-    approver: "General Counsel",
-    trigger: "A business team submits something for compliance review.",
-    actions: [
-      "Checks the submission against applicable regulations",
-      "Flags any non-compliant language",
-      "Checks it against past compliance decisions",
-      "Rates the overall risk level",
-      "Recommends how to fix any issues",
-    ],
-    value: [
-      "Faster compliance turnaround",
-      "Lower regulatory risk",
-      "The same standard applied every time",
-      "A ready audit trail",
-    ],
-    runtime: "2m 47s",
-    trace: [
-      { kind: "run", text: "starting connector…" },
-      { kind: "ok", text: "reading campaign_brief.pdf" },
-      { kind: "ok", text: "checked vs regulations" },
-      { kind: "ok", text: "1 non-compliant claim flagged" },
-      { kind: "ok", text: "risk level: medium" },
-      { kind: "wait", text: "waiting on approval (General Counsel)" },
-      { kind: "done", text: "done in 2m 47s" },
-    ],
-  },
-  {
-    group: "legal",
-    label: "Legal",
-    title: "NDA Approval Copilot",
-    goal: "Compare an incoming NDA to your standard template and get it ready to sign.",
-    persona: "Corporate Counsel",
-    approver: "Legal Manager",
-    trigger: "You or an external party send over an NDA.",
-    actions: [
-      "Compares the NDA to your standard template",
-      "Flags any non-standard or risky clauses",
-      "Drafts a standard NDA if none was provided",
-      "Prepares a redline of suggested changes",
-    ],
-    value: [
-      "Faster NDA turnaround",
-      "A consistent approval process",
-      "Fewer legal bottlenecks",
-      "Deals move faster",
-    ],
-    runtime: "1m 58s",
-    trace: [
-      { kind: "run", text: "starting connector…" },
-      { kind: "ok", text: "reading inbound NDA" },
-      { kind: "ok", text: "compared to standard template" },
-      { kind: "ok", text: "2 clauses flagged" },
-      { kind: "ok", text: "redline ready" },
-      { kind: "wait", text: "waiting on approval (Legal Manager)" },
-      { kind: "ok", text: "approved by S. Okafor · sent to sign" },
-      { kind: "done", text: "done in 1m 58s" },
-    ],
-  },
+  { slug: "sharepoint", name: "SharePoint", domain: "sharepoint.com", category: "Docs & Comms" },
+  { slug: "dropbox", name: "Dropbox", domain: "dropbox.com", category: "Docs & Comms" },
+  { slug: "slack", name: "Slack", domain: "slack.com", category: "Docs & Comms" },
 ];
 
 // ---------------- Page ----------------
@@ -683,16 +477,13 @@ function Index() {
 }
 
 function IndexContent() {
-  const [industry, setIndustry] = useState<string>("common");
   const [authOpen, setAuthOpen] = useState(false);
-  const content = useMemo(() => getContent(industry), [industry]);
-  const showFallbackNotice = industry !== "common" && !INDUSTRY_CONTENT[industry];
   const navigate = useNavigate();
   const { theme } = useTheme();
 
   const onAuthenticated = () => {
-    // Remember the industry the visitor tailored the page to, then enter the app.
-    setStoredIndustry(industry);
+    // The app is scoped to accounting.
+    setStoredIndustry("accounting");
     navigate({ to: "/app" });
   };
 
@@ -704,16 +495,11 @@ function IndexContent() {
       )}
     >
       <Nav onLogin={() => setAuthOpen(true)} />
-      <Hero
-        content={content}
-        industry={industry}
-        setIndustry={setIndustry}
-        showFallbackNotice={showFallbackNotice}
-      />
-      <IntegrationCatalog industry={industry} />
-      <CopilotLibrary industry={industry} />
+      <Hero onLogin={() => setAuthOpen(true)} />
+      <IntegrationCatalog />
+      <CopilotLibrary />
       <CoreDiagram />
-      <WorkflowSection content={content} />
+      <WorkflowSection content={CLOSE_WORKFLOW} />
       <PlatformGrid />
       <CTASection onLogin={() => setAuthOpen(true)} />
       <Footer />
@@ -735,9 +521,6 @@ function Nav({ onLogin }: { onLogin: () => void }) {
           <LogoLockup className="ml-2" />
         </a>
         <nav className="hidden items-center gap-8 text-sm font-medium text-muted-foreground md:flex">
-          <a href="#integrations" className="transition hover:text-foreground">
-            Integrations
-          </a>
           <a href="#copilots" className="transition hover:text-foreground">
             Copilots
           </a>
@@ -745,7 +528,10 @@ function Nav({ onLogin }: { onLogin: () => void }) {
             Platform
           </a>
           <a href="#workflow" className="transition hover:text-foreground">
-            Workflow
+            How it works
+          </a>
+          <a href="#integrations" className="transition hover:text-foreground">
+            Integrations
           </a>
         </nav>
         <div className="flex items-center gap-2">
@@ -764,9 +550,9 @@ function Nav({ onLogin }: { onLogin: () => void }) {
           </button>
           <button
             onClick={onLogin}
-            className="rounded-lg bg-foreground px-4 py-1.5 text-sm font-semibold text-background transition hover:opacity-90"
+            className="brand-gradient rounded-lg px-4 py-1.5 text-sm font-semibold text-primary-foreground shadow-sm shadow-primary/30 transition hover:opacity-90"
           >
-            Sign up
+            Book a demo
           </button>
         </div>
       </div>
@@ -776,261 +562,282 @@ function Nav({ onLogin }: { onLogin: () => void }) {
 
 // ---------------- Hero ----------------
 
-function Hero({
-  content,
-  industry,
-  setIndustry,
-  showFallbackNotice,
-}: {
-  content: IndustryContent;
-  industry: string;
-  setIndustry: (s: string) => void;
-  showFallbackNotice: boolean;
-}) {
+const HERO_TRUST: { icon: LucideIcon; label: string }[] = [
+  { icon: Landmark, label: "Works with QuickBooks, Xero & NetSuite" },
+  { icon: ShieldCheck, label: "Human approval before anything posts" },
+  { icon: ScrollText, label: "Full audit trail on every action" },
+];
+
+function Hero({ onLogin }: { onLogin: () => void }) {
   return (
     <section className="relative border-b border-border/60">
-      {/* Decorative layer is clipped on its own so it never cuts off the industry dropdown. */}
+      {/* Decorative layer is clipped on its own so it never overflows the section. */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute inset-0 grid-bg opacity-60" />
-        <div className="absolute -top-40 left-1/2 h-96 w-[52rem] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute -top-44 left-1/2 h-[30rem] w-[60rem] -translate-x-1/2 rounded-full bg-primary/25 blur-3xl" />
+        <div className="absolute -top-10 right-0 h-80 w-80 rounded-full bg-primary-2/20 blur-3xl" />
       </div>
       <div className="relative mx-auto max-w-7xl px-5 py-20 md:py-28">
         <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
           <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-          {INTEGRATIONS.length}+ supported integrations
+          Built for CFOs, controllers & finance teams
         </div>
         <h1 className="max-w-3xl text-4xl font-semibold leading-[1.05] tracking-tight md:text-6xl">
-          {content.heroTagline}
+          {HERO.tagline}
         </h1>
-        <p className="mt-5 max-w-2xl text-base text-muted-foreground md:text-lg">
-          {content.heroSub}
-        </p>
+        <p className="mt-5 max-w-2xl text-base text-muted-foreground md:text-lg">{HERO.sub}</p>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-stretch">
-          <IndustryPicker value={industry} onChange={setIndustry} />
-          <a
-            href="#workflow"
-            className="inline-flex items-center justify-center rounded-xl bg-foreground px-6 py-3 text-sm font-semibold uppercase tracking-wide text-background transition hover:opacity-90"
+          <button
+            onClick={onLogin}
+            className="brand-gradient inline-flex items-center justify-center rounded-xl px-6 py-3 text-sm font-semibold uppercase tracking-wide text-primary-foreground shadow-lg shadow-primary/30 transition hover:-translate-y-0.5 hover:opacity-95"
           >
-            Start building
-          </a>
+            Book a demo
+          </button>
           <a
-            href="#integrations"
+            href="#copilots"
             className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-6 py-3 text-sm font-semibold uppercase tracking-wide text-foreground transition hover:border-primary hover:text-primary"
           >
-            View integrations
+            See the copilots
           </a>
         </div>
 
-        {showFallbackNotice && (
-          <div className="mt-6 max-w-2xl rounded-lg border border-border bg-surface/70 px-4 py-3 text-sm text-muted-foreground">
-            Deep content for this industry is in active scoping — you're seeing the shared platform
-            view. Talk to us about your stack.
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function IndustryPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const [activeIdx, setActiveIdx] = useState(0);
-  const ref = useRef<HTMLDivElement>(null);
-  const current = INDUSTRIES.find((i) => i.slug === value) ?? INDUSTRIES[0];
-
-  useEffect(() => {
-    if (!open) return;
-    setActiveIdx(
-      Math.max(
-        0,
-        INDUSTRIES.findIndex((i) => i.slug === value),
-      ),
-    );
-    const onDoc = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [open, value]);
-
-  const onKey = (e: React.KeyboardEvent) => {
-    if (!open && (e.key === "Enter" || e.key === " " || e.key === "ArrowDown")) {
-      e.preventDefault();
-      setOpen(true);
-      return;
-    }
-    if (!open) return;
-    if (e.key === "Escape") setOpen(false);
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setActiveIdx((i) => (i + 1) % INDUSTRIES.length);
-    }
-    if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setActiveIdx((i) => (i - 1 + INDUSTRIES.length) % INDUSTRIES.length);
-    }
-    if (e.key === "Enter") {
-      e.preventDefault();
-      onChange(INDUSTRIES[activeIdx].slug);
-      setOpen(false);
-    }
-  };
-
-  return (
-    <div ref={ref} className="relative w-full sm:w-[360px]" onKeyDown={onKey}>
-      <button
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-        className="group flex w-full items-center gap-3 rounded-xl border border-border bg-surface p-2.5 pr-3 text-left transition hover:border-primary/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-      >
-        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-primary/15 text-lg text-primary">
-          {current.icon}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-            Tailor this page to
-          </span>
-          <span className="block truncate text-sm font-semibold text-foreground">
-            {current.slug === "common" ? "Choose your industry" : current.label}
-          </span>
-        </span>
-        <svg
-          className={`h-4 w-4 shrink-0 text-muted-foreground transition ${open ? "rotate-180" : ""}`}
-          viewBox="0 0 20 20"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <path d="M5 8l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-
-      {open && (
-        <div
-          role="listbox"
-          className="absolute left-0 right-0 z-40 mt-2 max-h-[420px] overflow-auto rounded-xl border border-border bg-surface p-1.5 shadow-2xl"
-        >
-          {INDUSTRIES.map((i, idx) => {
-            const selected = i.slug === value;
-            const active = idx === activeIdx;
+        <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-x-8 sm:gap-y-3">
+          {HERO_TRUST.map((t) => {
+            const Icon = t.icon;
             return (
-              <button
-                key={i.slug}
-                type="button"
-                role="option"
-                aria-selected={selected}
-                onMouseEnter={() => setActiveIdx(idx)}
-                onClick={() => {
-                  onChange(i.slug);
-                  setOpen(false);
-                }}
-                className={`flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left transition ${
-                  active ? "bg-surface-2" : ""
-                }`}
-              >
-                <span
-                  className={`grid h-9 w-9 shrink-0 place-items-center rounded-md text-base ${
-                    selected ? "bg-primary text-primary-foreground" : "bg-background text-primary"
-                  }`}
-                >
-                  {i.icon}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-foreground">
-                    {i.label}
-                  </span>
-                  <span className="block truncate text-xs text-muted-foreground">{i.blurb}</span>
-                </span>
-                {selected && (
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-primary">
-                    Active
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ---------------- Core diagram ----------------
-
-function CoreDiagram() {
-  const spokes: { name: string; icon: LucideIcon; desc: string }[] = [
-    {
-      name: "Identity",
-      icon: ShieldCheck,
-      desc: "SSO, roles, and audit trails so the right people see the right things.",
-    },
-    {
-      name: "AI Chat",
-      icon: MessageSquare,
-      desc: "Ask questions and get answers grounded in your own documents and data.",
-    },
-    {
-      name: "Workflow Engine",
-      icon: Workflow,
-      desc: "Runs each task step by step, with human approvals and retries built in.",
-    },
-    {
-      name: "Document Intelligence",
-      icon: FileText,
-      desc: "Reads PDFs, emails, and scans, then pulls out the structured data.",
-    },
-    {
-      name: "Connector Hub",
-      icon: Share2,
-      desc: "One place to securely connect the tools your team already works in.",
-    },
-    {
-      name: "Admin",
-      icon: Settings2,
-      desc: "Control usage, cost, access, and safety from a single dashboard.",
-    },
-  ];
-  return (
-    <section id="platform" className="border-b border-border/60 py-20">
-      <div className="mx-auto max-w-7xl px-5">
-        <div className="mb-12 flex max-w-2xl flex-col gap-3">
-          <span className="font-mono text-xs uppercase tracking-wider text-primary">
-            The shared core
-          </span>
-          <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
-            Every copilot runs on the same operating system.
-          </h2>
-          <p className="text-sm text-muted-foreground md:text-base">
-            Instead of rebuilding the basics for every use case, each copilot inherits the same six
-            building blocks. Turn one on and identity, chat, workflows, documents, connectors, and
-            admin all come with it — already wired together.
-          </p>
-        </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {spokes.map((s, i) => {
-            const Icon = s.icon;
-            return (
-              <div
-                key={s.name}
-                className="group rounded-xl border border-border bg-surface p-5 transition duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-md"
-              >
-                <div className="mb-4 flex items-center justify-between">
-                  <span className="grid h-10 w-10 place-items-center rounded-lg border border-border bg-background text-muted-foreground transition group-hover:border-primary/40 group-hover:text-primary">
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <span className="font-mono text-xs text-muted-foreground">0{i + 1}</span>
-                </div>
-                <div className="text-base font-semibold">{s.name}</div>
-                <p className="mt-1.5 text-sm text-muted-foreground">{s.desc}</p>
+              <div key={t.label} className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Icon className="h-4 w-4 shrink-0 text-primary" />
+                {t.label}
               </div>
             );
           })}
         </div>
       </div>
     </section>
+  );
+}
+
+// ---------------- Core diagram ----------------
+
+type CoreCapability = {
+  name: string;
+  icon: LucideIcon;
+  desc: string;
+  detail: string;
+  points: string[];
+};
+
+const CORE_CAPABILITIES: CoreCapability[] = [
+  {
+    name: "Document Intelligence",
+    icon: FileText,
+    desc: "Reads invoices, receipts, and statements, then extracts clean, structured data.",
+    detail:
+      "Turns any inbound document — PDFs, scans, or phone photos — into structured, ledger-ready data without manual keying. Every field comes with a confidence score, so low-confidence extractions are flagged for a human instead of posted blindly.",
+    points: [
+      "OCR for invoices, receipts, and bank statements",
+      "Line-item, total, tax, and multi-currency parsing",
+      "Vendor and GL account recognition",
+      "Confidence scoring with human review on exceptions",
+    ],
+  },
+  {
+    name: "Ledger Sync",
+    icon: Landmark,
+    desc: "Two-way sync with QuickBooks, Xero, NetSuite, and Sage — coding and entries write back.",
+    detail:
+      "A live, two-way connection to your accounting system of record. Copilots read your chart of accounts and open items, then write approved entries straight back — no CSV exports, no re-keying, no drift between systems.",
+    points: [
+      "Two-way sync with QuickBooks, Xero, NetSuite & Sage",
+      "Automatic GL coding from your chart of accounts",
+      "Journal entry and invoice write-back",
+      "Vendor, customer, and dimension mapping",
+    ],
+  },
+  {
+    name: "Reconciliation Engine",
+    icon: Workflow,
+    desc: "Auto-matches bank, ledger, and sub-ledger activity and surfaces only the exceptions.",
+    detail:
+      "Matches transactions across your bank feeds, general ledger, and AP/AR sub-ledgers automatically, then groups and explains only the exceptions that actually need a human — so reconciliations take minutes, not hours.",
+    points: [
+      "Auto-matching by amount, date, and reference",
+      "Bank, AP, AR, and inter-company reconciliation",
+      "Exceptions grouped and explained in plain language",
+      "Suggested adjusting entries for fees and interest",
+    ],
+  },
+  {
+    name: "Approvals & Controls",
+    icon: ShieldCheck,
+    desc: "Segregation of duties, policy checks, and human sign-off before anything posts.",
+    detail:
+      "Every action a copilot proposes runs through your controls before it touches the ledger. Approval routing, spend thresholds, and policy checks are enforced automatically, and nothing posts without the right person signing off.",
+    points: [
+      "Configurable approval routing and thresholds",
+      "Segregation of duties enforced by role",
+      "Company policy checks on every transaction",
+      "Human sign-off required before anything posts",
+    ],
+  },
+  {
+    name: "Audit Trail",
+    icon: ScrollText,
+    desc: "Every extraction, match, and approval is logged and traceable back to source.",
+    detail:
+      "A complete, tamper-evident record of everything the platform does. Each extraction, match, edit, and approval is logged with the user and timestamp and linked back to its source document — audit-ready by default.",
+    points: [
+      "Every action logged with user and timestamp",
+      "One-click trace from entry back to source document",
+      "Immutable history of edits and approvals",
+      "Exportable workpaper set for auditors",
+    ],
+  },
+  {
+    name: "Reporting & Insights",
+    icon: BarChart3,
+    desc: "P&L, balance sheet, and cash flow with variance commentary written for you.",
+    detail:
+      "Turns your ledger data into board-ready reporting on demand. Statements are built, actuals compared against budget and prior period, and variances explained in plain language — ready for you to review and send.",
+    points: [
+      "P&L, balance sheet, and cash flow statements",
+      "Budget vs actual and prior-period comparisons",
+      "Automatic variance commentary",
+      "Board- and management-ready exports",
+    ],
+  },
+];
+
+function CoreDiagram() {
+  const [selected, setSelected] = useState<CoreCapability | null>(null);
+  return (
+    <section id="platform" className="border-b border-border/60 py-20">
+      <div className="mx-auto max-w-7xl px-5">
+        <div className="mb-12 flex max-w-2xl flex-col gap-3">
+          <span className="font-mono text-xs uppercase tracking-wider text-primary">
+            The accounting core
+          </span>
+          <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
+            Every copilot runs on the same finance operating system.
+          </h2>
+          <p className="text-sm text-muted-foreground md:text-base">
+            Instead of rebuilding the basics for every task, each copilot inherits the same six
+            building blocks — document intelligence, ledger sync, reconciliation, controls, audit
+            trail, and reporting — already wired together and tuned for accounting. Click any block
+            to see what it does.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-5 lg:grid-cols-3">
+          {CORE_CAPABILITIES.map((s, i) => {
+            const Icon = s.icon;
+            return (
+              <button
+                key={s.name}
+                type="button"
+                onClick={() => setSelected(s)}
+                aria-label={`Learn more about ${s.name}`}
+                className="group flex h-full flex-col rounded-xl border border-border bg-surface p-5 text-left transition duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 md:p-6"
+              >
+                <div className="mb-4 flex items-center justify-between">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/15 transition group-hover:bg-primary group-hover:text-primary-foreground group-hover:ring-primary">
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <span className="font-mono text-xs text-muted-foreground">0{i + 1}</span>
+                </div>
+                <div className="text-base font-semibold md:text-[17px]">{s.name}</div>
+                <p className="mt-1.5 flex-1 text-sm leading-relaxed text-muted-foreground">
+                  {s.desc}
+                </p>
+                <span className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-primary opacity-0 transition group-hover:opacity-100">
+                  Learn more
+                  <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {selected && <CoreModal capability={selected} onClose={() => setSelected(null)} />}
+    </section>
+  );
+}
+
+function CoreModal({ capability, onClose }: { capability: CoreCapability; onClose: () => void }) {
+  const Icon = capability.icon;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-8 backdrop-blur-sm"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="core-title"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="nice-scroll max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-surface shadow-2xl"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-border p-6">
+          <div className="flex items-center gap-4">
+            <span className="brand-gradient grid h-12 w-12 shrink-0 place-items-center rounded-xl text-primary-foreground shadow-md shadow-primary/25">
+              <Icon className="h-6 w-6" />
+            </span>
+            <div>
+              <span className="font-mono text-[10px] font-medium uppercase tracking-wider text-primary">
+                Accounting core
+              </span>
+              <h3 id="core-title" className="mt-0.5 text-xl font-semibold tracking-tight">
+                {capability.name}
+              </h3>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="shrink-0 rounded-lg p-2 text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-6 p-6">
+          <p className="text-sm leading-relaxed text-foreground/90">{capability.detail}</p>
+          <div>
+            <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+              What it does
+            </div>
+            <ul className="space-y-2">
+              {capability.points.map((p) => (
+                <li key={p} className="flex gap-2.5 text-sm text-foreground/90">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  {p}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <a
+            href="#copilots"
+            onClick={onClose}
+            className="brand-gradient inline-flex w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/25 transition hover:opacity-95"
+          >
+            See the copilots that use it
+          </a>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1059,8 +866,8 @@ function useInView<T extends HTMLElement>(rootMargin = "0px 0px -12% 0px") {
   return { ref, inView };
 }
 
-function WorkflowSection({ content }: { content: IndustryContent }) {
-  const { workflow } = content;
+function WorkflowSection({ content }: { content: WorkflowContent }) {
+  const workflow = content;
   const heading = useInView<HTMLDivElement>();
   const before = useInView<HTMLDivElement>();
   const after = useInView<HTMLDivElement>();
@@ -1085,13 +892,13 @@ function WorkflowSection({ content }: { content: IndustryContent }) {
           )}
         >
           <span className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/5 px-3 py-1 font-mono text-xs uppercase tracking-wider text-primary">
-            <Sparkles className="h-3 w-3" /> Workflow example
+            <Sparkles className="h-3 w-3" /> How it works
           </span>
           <h2 className="max-w-2xl text-3xl font-semibold tracking-tight md:text-4xl">
             {workflow.title}
           </h2>
           <p className="max-w-xl text-sm text-muted-foreground">
-            The same six steps every time — AI does the work, a human stays in control.
+            The same six steps every time — AI does the work, your team stays in control.
           </p>
         </div>
 
@@ -1198,25 +1005,15 @@ function WorkflowSection({ content }: { content: IndustryContent }) {
   );
 }
 
-// Icons for the six-step flow, assigned by position (every industry follows the
-// same intake → parse → enrich → draft → approve → execute shape).
-const STEP_ICONS: LucideIcon[] = [Mail, FileText, Share2, Wand2, User, CheckCircle2];
+// Icons for the six-step flow, assigned by position (intake → extract → match →
+// validate → approve → post).
+const STEP_ICONS: LucideIcon[] = [Mail, FileText, Workflow, Wand2, User, CheckCircle2];
 
 // ---------------- Copilot library (interactive catalog + modal) ----------------
 
-function CopilotLibrary({ industry }: { industry: string }) {
+function CopilotLibrary() {
   const [active, setActive] = useState<CopilotGroup | "all">("all");
   const [selected, setSelected] = useState<Copilot | null>(null);
-
-  // If the visitor tailored the hero to an industry we have copilots for,
-  // pre-filter this catalog to match.
-  useEffect(() => {
-    if (industry === "accounting" || industry === "construction" || industry === "legal") {
-      setActive(industry);
-    } else {
-      setActive("all");
-    }
-  }, [industry]);
 
   const items = useMemo(
     () => (active === "all" ? COPILOTS : COPILOTS.filter((c) => c.group === active)),
@@ -1235,7 +1032,7 @@ function CopilotLibrary({ industry }: { industry: string }) {
           </h2>
           <p className="max-w-2xl text-sm text-muted-foreground">
             Every copilot follows the same shape: it starts on a trigger, handles the busywork with
-            AI, and stops for your approval before anything goes out. Click any card to see how it
+            AI, and stops for your approval before anything posts. Click any card to see how it
             runs.
           </p>
         </div>
@@ -1391,7 +1188,7 @@ function CopilotModal({ copilot, onClose }: { copilot: Copilot; onClose: () => v
               You stay in control — <b className="font-semibold text-primary">
                 {copilot.approver}
               </b>{" "}
-              approves before anything ships.
+              approves before anything posts.
             </div>
 
             <div>
@@ -1448,7 +1245,7 @@ function CopilotModal({ copilot, onClose }: { copilot: Copilot; onClose: () => v
               <a
                 href="#cta"
                 onClick={onClose}
-                className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+                className="brand-gradient inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/25 transition hover:opacity-95"
               >
                 Get this copilot
               </a>
@@ -1475,31 +1272,16 @@ function TraceIcon({ kind }: { kind: Copilot["trace"][number]["kind"] }) {
   return <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />;
 }
 
-// ---------------- Integration catalog (Nango-style grid) ----------------
+// ---------------- Integration catalog ----------------
 
-// The industry slugs in the picker map 1:1 onto the catalog categories, so
-// selecting an industry can pre-filter the integrations grid.
-const INDUSTRY_TO_CATEGORY: Record<string, IntegrationCategory | "all"> = {
-  common: "all",
-  accounting: "Accounting",
-  banking: "Banking",
-  construction: "Construction",
-  hr: "HR & ATS",
-  productivity: "Productivity",
-};
-
-function IntegrationCatalog({ industry }: { industry: string }) {
-  const [active, setActive] = useState<IntegrationCategory | "all">(
-    INDUSTRY_TO_CATEGORY[industry] ?? "all",
-  );
-
-  // Keep the grid in sync with the industry chosen up in the hero.
-  useEffect(() => {
-    setActive(INDUSTRY_TO_CATEGORY[industry] ?? "all");
-  }, [industry]);
+function IntegrationCatalog() {
+  const [active, setActive] = useState<LandingIntegrationCategory | "all">("all");
 
   const items = useMemo(
-    () => (active === "all" ? INTEGRATIONS : INTEGRATIONS.filter((i) => i.category === active)),
+    () =>
+      active === "all"
+        ? LANDING_INTEGRATIONS
+        : LANDING_INTEGRATIONS.filter((i) => i.category === active),
     [active],
   );
 
@@ -1511,17 +1293,17 @@ function IntegrationCatalog({ industry }: { industry: string }) {
             Integrations
           </span>
           <h2 className="mx-auto max-w-2xl text-3xl font-semibold tracking-tight md:text-4xl">
-            {INTEGRATIONS.length}+ APIs your copilots can talk to.
+            Connects to the tools your finance team already runs on.
           </h2>
           <p className="mx-auto max-w-2xl text-sm text-muted-foreground">
-            Authenticate once, then read and act across the tools your team already uses — from
-            email and storage to CRM, accounting, and ticketing.
+            Authenticate once, then read and post across your ERP, banks, payment rails, expense
+            tools, and document stores — no re-keying, no CSV exports.
           </p>
         </div>
 
         <div className="mb-8 flex flex-wrap justify-center gap-1.5">
           <CatalogChip label="All" active={active === "all"} onClick={() => setActive("all")} />
-          {CATEGORIES.map((c) => (
+          {INTEGRATION_CATEGORIES.map((c) => (
             <CatalogChip key={c} label={c} active={active === c} onClick={() => setActive(c)} />
           ))}
         </div>
@@ -1577,12 +1359,12 @@ function CatalogChip({
 
 function PlatformGrid() {
   const rows = [
-    { k: "Identity", v: "SSO, RBAC, audit trails." },
-    { k: "AI Chat", v: "Grounded chat across your data." },
-    { k: "Workflow Engine", v: "Approvals, escalations, retries." },
-    { k: "Document Intelligence", v: "OCR + structured extraction." },
-    { k: "Connector Hub", v: "Nango + Composio, one config." },
-    { k: "Admin", v: "Usage, cost, and safety controls." },
+    { k: "Document Intelligence", v: "OCR for invoices, receipts, and statements with structured extraction." },
+    { k: "Ledger Sync", v: "Two-way sync with QuickBooks, Xero, NetSuite, and Sage." },
+    { k: "Reconciliation", v: "Auto-matching for bank, AP, AR, and inter-company activity." },
+    { k: "Controls", v: "Segregation of duties, approval routing, and policy checks." },
+    { k: "Audit Trail", v: "Every action logged and traceable back to source." },
+    { k: "Security", v: "SSO, role-based access, encryption, and data residency controls." },
   ];
   return (
     <section className="border-b border-border/60 py-20">
@@ -1592,7 +1374,7 @@ function PlatformGrid() {
             Under the hood
           </span>
           <h2 className="mt-2 max-w-2xl text-3xl font-semibold tracking-tight md:text-4xl">
-            Every copilot inherits this.
+            Enterprise-grade, built for the controls finance requires.
           </h2>
         </div>
         <div className="overflow-hidden rounded-2xl border border-border">
@@ -1619,20 +1401,20 @@ function PlatformGrid() {
 
 function CTASection({ onLogin }: { onLogin: () => void }) {
   return (
-    <section className="py-20">
+    <section id="cta" className="py-20">
       <div className="mx-auto max-w-4xl px-5 text-center">
         <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
-          Bring the AI OS to your industry.
+          Give your finance team back the close.
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
-          Sign in to explore your workspace, or create an account to scope integrations for your
-          stack.
+          See how AP/AR, reconciliation, and reporting copilots run on your own stack. Book a demo,
+          or sign in to your workspace.
         </p>
         <button
           onClick={onLogin}
-          className="mt-6 inline-flex items-center justify-center rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+          className="brand-gradient mt-6 inline-flex items-center justify-center rounded-lg px-6 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/30 transition hover:-translate-y-0.5 hover:opacity-95"
         >
-          Get started
+          Book a demo
         </button>
       </div>
     </section>
@@ -1643,8 +1425,8 @@ function CTASection({ onLogin }: { onLogin: () => void }) {
 
 function Footer() {
   const columns: { title: string; links: string[] }[] = [
-    { title: "Product", links: ["Integrations", "Platform", "Workflows", "Pricing"] },
-    { title: "Resources", links: ["Docs", "API reference", "Changelog", "Status"] },
+    { title: "Product", links: ["Copilots", "Platform", "Integrations", "Security"] },
+    { title: "Solutions", links: ["Accounts payable", "Accounts receivable", "Month-end close", "Accounting firms"] },
     { title: "Company", links: ["About", "Customers", "Careers", "Contact"] },
   ];
   return (
@@ -1656,8 +1438,8 @@ function Footer() {
               <LogoLockup />
             </div>
             <p className="mt-4 max-w-xs text-sm text-muted-foreground">
-              One AI operating system for every line of business — with the integrations your team
-              already relies on.
+              The AI operating system for accounting — AP/AR, reconciliation, close, and reporting,
+              with a human in control of every entry.
             </p>
           </div>
           {columns.map((col) => (
@@ -1678,8 +1460,8 @@ function Footer() {
           ))}
         </div>
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-border pt-6 text-xs text-muted-foreground md:flex-row">
-          <div>© {new Date().getFullYear()} Industry AI OS. All rights reserved.</div>
-          <div className="font-mono">Built on a shared AI core</div>
+          <div>© {new Date().getFullYear()} Ledger AI OS. All rights reserved.</div>
+          <div className="font-mono">The AI operating system for accounting</div>
         </div>
       </div>
     </footer>
@@ -1754,7 +1536,7 @@ function AuthModal({
             <p className="mt-1 text-xs text-muted-foreground">
               {tab === "login"
                 ? "Sign in to your workspace."
-                : "Get access to your industry copilot."}
+                : "Get access to your accounting copilots."}
             </p>
           </div>
           <button

@@ -16,6 +16,7 @@
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
+  --color-primary-2: var(--primary-2);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -44,18 +45,19 @@
   --card-foreground: oklch(0.2 0.01 275);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.2 0.01 275);
-  --primary: oklch(0.52 0.2 274); /* indigo accent */
+  --primary: oklch(0.52 0.2 264); /* SBI royal blue accent */
+  --primary-2: oklch(0.44 0.19 276); /* deeper blue for gradient fills */
   --primary-foreground: oklch(0.99 0 0);
   --secondary: oklch(0.965 0.004 275);
   --secondary-foreground: oklch(0.3 0.012 275);
   --muted: oklch(0.965 0.004 275);
   --muted-foreground: oklch(0.52 0.012 275);
-  --accent: oklch(0.95 0.03 274);
-  --accent-foreground: oklch(0.4 0.08 274);
+  --accent: oklch(0.95 0.03 264);
+  --accent-foreground: oklch(0.42 0.12 264);
   --destructive: oklch(0.58 0.2 27);
   --border: oklch(0.92 0.004 275);
   --input: oklch(0.92 0.004 275);
-  --ring: oklch(0.52 0.2 274);
+  --ring: oklch(0.52 0.2 264);
   --grid-line: oklch(0.2 0.01 275 / 0.045);
 }
 
@@ -70,18 +72,19 @@
   --card-foreground: oklch(0.96 0.004 275);
   --popover: oklch(0.2 0.01 275);
   --popover-foreground: oklch(0.96 0.004 275);
-  --primary: oklch(0.68 0.17 274);
+  --primary: oklch(0.66 0.19 264);
+  --primary-2: oklch(0.58 0.2 276);
   --primary-foreground: oklch(0.16 0.01 275);
   --secondary: oklch(0.26 0.012 275);
   --secondary-foreground: oklch(0.96 0.004 275);
   --muted: oklch(0.24 0.012 275);
   --muted-foreground: oklch(0.72 0.014 275);
-  --accent: oklch(0.3 0.04 274);
-  --accent-foreground: oklch(0.9 0.04 274);
+  --accent: oklch(0.3 0.05 264);
+  --accent-foreground: oklch(0.9 0.05 264);
   --destructive: oklch(0.62 0.2 27);
   --border: oklch(0.3 0.01 275);
   --input: oklch(0.28 0.012 275);
-  --ring: oklch(0.68 0.17 274);
+  --ring: oklch(0.66 0.19 264);
   --grid-line: oklch(0.96 0.004 275 / 0.05);
   color: var(--foreground);
   background-color: var(--background);
@@ -101,6 +104,11 @@
   .font-mono {
     font-family: var(--font-mono);
   }
+}
+
+/* Rich blue gradient fill for primary CTAs and feature surfaces. */
+@utility brand-gradient {
+  background-image: linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 100%);
 }
 
 @utility grid-bg {
@@ -128,18 +136,19 @@
   --card-foreground: oklch(0.24 0.012 260);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.24 0.012 260);
-  --primary: oklch(0.52 0.2 274); /* indigo accent (matches marketing) */
+  --primary: oklch(0.52 0.2 264); /* SBI royal blue accent (matches marketing) */
+  --primary-2: oklch(0.44 0.19 276);
   --primary-foreground: oklch(0.99 0 0);
   --secondary: oklch(0.965 0.004 275);
   --secondary-foreground: oklch(0.3 0.012 275);
   --muted: oklch(0.965 0.004 275);
   --muted-foreground: oklch(0.5 0.012 275);
-  --accent: oklch(0.95 0.03 274);
-  --accent-foreground: oklch(0.4 0.08 274);
+  --accent: oklch(0.95 0.03 264);
+  --accent-foreground: oklch(0.42 0.12 264);
   --destructive: oklch(0.58 0.2 27);
   --border: oklch(0.92 0.004 275);
   --input: oklch(0.92 0.004 275);
-  --ring: oklch(0.52 0.2 274);
+  --ring: oklch(0.52 0.2 264);
   color: var(--foreground);
   background-color: var(--background);
 }
@@ -154,18 +163,19 @@
   --card-foreground: oklch(0.96 0.004 260);
   --popover: oklch(0.23 0.008 260);
   --popover-foreground: oklch(0.96 0.004 260);
-  --primary: oklch(0.68 0.17 274);
+  --primary: oklch(0.66 0.19 264);
+  --primary-2: oklch(0.58 0.2 276);
   --primary-foreground: oklch(0.16 0.01 275);
   --secondary: oklch(0.29 0.01 260);
   --secondary-foreground: oklch(0.96 0.004 260);
   --muted: oklch(0.27 0.01 260);
   --muted-foreground: oklch(0.72 0.014 260);
-  --accent: oklch(0.32 0.04 274);
-  --accent-foreground: oklch(0.9 0.04 274);
+  --accent: oklch(0.32 0.05 264);
+  --accent-foreground: oklch(0.9 0.05 264);
   --destructive: oklch(0.62 0.2 27);
   --border: oklch(0.32 0.008 260);
   --input: oklch(0.3 0.01 260);
-  --ring: oklch(0.68 0.17 274);
+  --ring: oklch(0.66 0.19 264);
 }
 
 /* Inside the shell, use the clean system UI font, not the display font. */
