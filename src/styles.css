@@ -133,28 +133,29 @@
    `text-foreground`, `bg-primary`, etc. inside the shell picks them up.
    ========================================================================== */
 .app-shell {
-  /* Light */
-  --background: oklch(0.985 0.002 260);
-  --foreground: oklch(0.24 0.012 260);
-  --surface: oklch(1 0 0);
-  --surface-2: oklch(0.965 0.004 260);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.24 0.012 260);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.24 0.012 260);
-  --primary: oklch(0.52 0.2 264); /* SBI royal blue accent (matches marketing) */
-  --primary-2: oklch(0.44 0.19 276);
+  /* Light — matches the marketing site's construction (safety-orange /
+     caution-yellow) palette. Dark mode below is untouched. */
+  --background: oklch(0.97 0.016 75);
+  --foreground: oklch(0.2 0.012 50);
+  --surface: oklch(0.99 0.01 75);
+  --surface-2: oklch(0.94 0.028 68);
+  --card: oklch(0.99 0.01 75);
+  --card-foreground: oklch(0.2 0.012 50);
+  --popover: oklch(0.99 0.01 75);
+  --popover-foreground: oklch(0.2 0.012 50);
+  --primary: oklch(0.58 0.19 38); /* safety orange (matches marketing) */
+  --primary-2: oklch(0.52 0.18 30);
   --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.965 0.004 275);
-  --secondary-foreground: oklch(0.3 0.012 275);
-  --muted: oklch(0.965 0.004 275);
-  --muted-foreground: oklch(0.5 0.012 275);
-  --accent: oklch(0.95 0.03 264);
-  --accent-foreground: oklch(0.42 0.12 264);
-  --destructive: oklch(0.58 0.2 27);
-  --border: oklch(0.92 0.004 275);
-  --input: oklch(0.92 0.004 275);
-  --ring: oklch(0.52 0.2 264);
+  --secondary: oklch(0.95 0.024 70);
+  --secondary-foreground: oklch(0.32 0.02 50);
+  --muted: oklch(0.95 0.024 70);
+  --muted-foreground: oklch(0.5 0.02 60);
+  --accent: oklch(0.92 0.09 92); /* caution-yellow tint */
+  --accent-foreground: oklch(0.4 0.12 70);
+  --destructive: oklch(0.55 0.22 22);
+  --border: oklch(0.87 0.025 65);
+  --input: oklch(0.87 0.025 65);
+  --ring: oklch(0.58 0.19 38);
   color: var(--foreground);
   background-color: var(--background);
 }
