@@ -12,7 +12,9 @@ import {
   Workflow,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 
+import { listApprovalItems, listWorkflowRuns } from "../api";
 import { useSession } from "../lib/session";
 import { cn } from "../lib/utils";
 
@@ -89,6 +91,27 @@ function Dashboard() {
   const { me } = useSession();
   const name = me?.email ? me.email.split("@")[0] : "there";
 
+  // Starts null (matching the static KPIS defaults on server + first client
+  // render); the effect below loads the real counts from the shared
+  // workflow/approval stores client-side, avoiding a hydration mismatch.
+  const [liveCounts, setLiveCounts] = useState<{ active: number; pending: number } | null>(null);
+
+  useEffect(() => {
+    const runs = listWorkflowRuns();
+    const approvals = listApprovalItems();
+    setLiveCounts({
+      active: runs.filter((r) => r.status === "running" || r.status === "awaiting_approval").length,
+      pending: approvals.length,
+    });
+  }, []);
+
+  const kpis = KPIS.map((k) => {
+    if (!liveCounts) return k;
+    if (k.label === "Active Workflows") return { ...k, value: String(liveCounts.active) };
+    if (k.label === "Pending Approvals") return { ...k, value: String(liveCounts.pending) };
+    return k;
+  });
+
   return (
     <div className="space-y-7">
       {/* Header */}
@@ -107,7 +130,7 @@ function Dashboard() {
 
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {KPIS.map((k) => (
+        {kpis.map((k) => (
           <Kpi key={k.label} {...k} />
         ))}
       </div>

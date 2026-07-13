@@ -43,7 +43,6 @@ import { toast } from "sonner";
 
 import { ApiError, api } from "../api";
 import { IntegrationLogo } from "../components/common/IntegrationLogo";
-import { LogoLockup } from "../components/common/LogoLockup";
 import { setStoredIndustry } from "../lib/industries";
 import { ThemeProvider, useTheme } from "../lib/theme";
 import { cn } from "../lib/utils";
@@ -135,11 +134,11 @@ const COPILOT_GROUPS: { slug: CopilotGroup | "all"; label: string }[] = [
 ];
 
 const GROUP_META: Record<CopilotGroup, { label: string; accent: string }> = {
-  // Restrained, construction-appropriate accents so each family reads distinctly
-  // without leaving the neutral theme.
-  apar: { label: "RFIs / Submittals", accent: "#4f9dde" },
-  close: { label: "Billing & Job Costing", accent: "#3f9a7f" },
-  compliance: { label: "Compliance & Safety", accent: "#8a7fd0" },
+  // Warm, construction-appropriate accents so each family reads distinctly
+  // against the orange/yellow brand palette without competing with it.
+  apar: { label: "RFIs / Submittals", accent: "#D9971E" }, // amber/gold
+  close: { label: "Billing & Job Costing", accent: "#C1522A" }, // terracotta
+  compliance: { label: "Compliance & Safety", accent: "#8A6A2F" }, // olive-bronze
 };
 
 const COPILOTS: Copilot[] = [
@@ -681,7 +680,7 @@ function Nav({ onLogin, onBookDemo }: { onLogin: () => void; onBookDemo: () => v
     <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3.5">
         <a href="#" className="flex items-center">
-          <LogoLockup className="ml-2" />
+          <img src="/site_logo.png" alt="Construct AI" className="ml-2 h-14 w-auto object-contain" />
         </a>
         <nav className="hidden items-center gap-8 text-sm font-medium text-muted-foreground md:flex">
           <a href="#copilots" className="transition hover:text-foreground">
@@ -2409,7 +2408,7 @@ function Footer() {
         <div className="grid gap-10 md:grid-cols-[1.5fr_repeat(3,1fr)]">
           <div>
             <div className="flex items-center">
-              <LogoLockup />
+              <img src="/site_logo.png" alt="Construct AI" className="h-14 w-auto object-contain" />
             </div>
             <p className="mt-4 max-w-xs text-sm text-muted-foreground">
               The AI operating system for construction — RFIs, submittals, job costing, and

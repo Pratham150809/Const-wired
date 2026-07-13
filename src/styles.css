@@ -36,34 +36,39 @@
 
 :root {
   --radius: 0.75rem;
-  /* Warm "blueprint paper" light theme for the marketing site: warm ivory/sand
-     surfaces instead of stark white, same royal-blue accent and dark-navy text. */
-  --background: oklch(0.98 0.008 80);
-  --foreground: oklch(0.2 0.01 275);
-  --surface: oklch(0.99 0.005 80);
-  --surface-2: oklch(0.955 0.012 75);
-  --card: oklch(0.99 0.005 80);
-  --card-foreground: oklch(0.2 0.01 275);
-  --popover: oklch(0.99 0.005 80);
-  --popover-foreground: oklch(0.2 0.01 275);
-  --primary: oklch(0.52 0.2 264); /* SBI royal blue accent */
-  --primary-2: oklch(0.44 0.19 276); /* deeper blue for gradient fills */
+  /* Construction-industry light theme for the marketing site: warm cream/sand
+     surfaces with safety-orange as the primary accent and a caution-yellow
+     tint for highlights — the two most recognizable colors in construction
+     (hi-vis, hard hats, crane paint), kept light/neutral enough to stay
+     readable rather than a literal orange page background. */
+  --background: oklch(0.97 0.016 75);
+  --foreground: oklch(0.2 0.012 50);
+  --surface: oklch(0.99 0.01 75);
+  --surface-2: oklch(0.94 0.028 68);
+  --card: oklch(0.99 0.01 75);
+  --card-foreground: oklch(0.2 0.012 50);
+  --popover: oklch(0.99 0.01 75);
+  --popover-foreground: oklch(0.2 0.012 50);
+  --primary: oklch(0.58 0.19 38); /* safety orange */
+  --primary-2: oklch(0.52 0.18 30); /* deeper burnt-orange for gradient fills */
   --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.96 0.008 78);
-  --secondary-foreground: oklch(0.3 0.012 275);
-  --muted: oklch(0.96 0.008 78);
-  --muted-foreground: oklch(0.52 0.01 80);
-  --accent: oklch(0.95 0.03 264);
-  --accent-foreground: oklch(0.42 0.12 264);
-  --destructive: oklch(0.58 0.2 27);
-  --border: oklch(0.9 0.012 78);
-  --input: oklch(0.9 0.012 78);
-  --ring: oklch(0.52 0.2 264);
-  --grid-line: oklch(0.25 0.02 80 / 0.05);
+  --secondary: oklch(0.95 0.024 70);
+  --secondary-foreground: oklch(0.32 0.02 50);
+  --muted: oklch(0.95 0.024 70);
+  --muted-foreground: oklch(0.5 0.02 60);
+  --accent: oklch(0.92 0.09 92); /* caution-yellow tint */
+  --accent-foreground: oklch(0.4 0.12 70);
+  --destructive: oklch(0.55 0.22 22); /* kept clearly red, distinct from the orange accent */
+  --border: oklch(0.87 0.025 65);
+  --input: oklch(0.87 0.025 65);
+  --ring: oklch(0.58 0.19 38);
+  --grid-line: oklch(0.3 0.03 60 / 0.06);
 }
 
 /* Dark variant for the marketing landing page. Scoped to `.landing-root` so it
-   redefines the same tokens the light `:root` sets, with higher specificity. */
+   redefines the same tokens the light `:root` sets, with higher specificity.
+   Background/neutrals stay as they were — only the brand accent (primary/ring/
+   accent) shifts to the same orange/yellow identity as light mode. */
 .landing-root.dark {
   --background: oklch(0.16 0.008 275);
   --foreground: oklch(0.96 0.004 275);
@@ -73,19 +78,19 @@
   --card-foreground: oklch(0.96 0.004 275);
   --popover: oklch(0.2 0.01 275);
   --popover-foreground: oklch(0.96 0.004 275);
-  --primary: oklch(0.66 0.19 264);
-  --primary-2: oklch(0.58 0.2 276);
+  --primary: oklch(0.68 0.17 45);
+  --primary-2: oklch(0.6 0.18 35);
   --primary-foreground: oklch(0.16 0.01 275);
   --secondary: oklch(0.26 0.012 275);
   --secondary-foreground: oklch(0.96 0.004 275);
   --muted: oklch(0.24 0.012 275);
   --muted-foreground: oklch(0.72 0.014 275);
-  --accent: oklch(0.3 0.05 264);
-  --accent-foreground: oklch(0.9 0.05 264);
+  --accent: oklch(0.32 0.07 80);
+  --accent-foreground: oklch(0.88 0.08 85);
   --destructive: oklch(0.62 0.2 27);
   --border: oklch(0.3 0.01 275);
   --input: oklch(0.28 0.012 275);
-  --ring: oklch(0.66 0.19 264);
+  --ring: oklch(0.68 0.17 45);
   --grid-line: oklch(0.96 0.004 275 / 0.05);
   color: var(--foreground);
   background-color: var(--background);

@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   Sparkles,
   User,
+  Zap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -24,6 +25,7 @@ const SUGGESTED: { icon: LucideIcon; label: string }[] = [
   { icon: Sparkles, label: "What can this platform do for my team?" },
   { icon: Bot, label: "Draft a status update from this week's activity." },
   { icon: ShieldCheck, label: "Explain how approvals work here." },
+  { icon: Zap, label: "Call the RFI Copilot." },
 ];
 
 const CAPABILITIES: { icon: LucideIcon; title: string; detail: string }[] = [

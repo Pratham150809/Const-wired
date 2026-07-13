@@ -1,100 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CheckCircle2, ClipboardCheck, Clock, ShieldCheck, XCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { decideApprovalItem, listApprovalItems } from "../api";
+import type { ApprovalItem } from "../api";
 import { useSession } from "../lib/session";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/app/approvals")({ component: Approvals });
 
-/* ─────────────────────────  Dummy data  ───────────────────────── */
+/* ─────────────────────────  Data  ───────────────────────── */
+// Data now lives in api/client.ts, so an item drafted by a workflow triggered
+// from the AI Assistant shows up in this queue too.
 
 type Decision = "approved" | "rejected";
-
-type ApprovalItem = {
-  id: string;
-  type: string;
-  title: string;
-  amount: string;
-  requester: string;
-  approver: string;
-  waited: string;
-  priority: "high" | "medium" | "low";
-  summary: string;
-  checks: { label: string; ok: boolean }[];
-};
-
-const INITIAL: ApprovalItem[] = [
-  {
-    id: "wf_co_2231",
-    type: "Change Order Approval",
-    title: "Change Order CO-2231 — Coastal Glazing LLC",
-    amount: "$14,280.00",
-    requester: "Contracts Copilot",
-    approver: "Project Executive",
-    waited: "18m",
-    priority: "medium",
-    summary:
-      "Scope match against the Riverside Tower glazing contract and approved drawings succeeded. CO-2231 was flagged as a possible duplicate of a change order Coastal Glazing LLC submitted last week — confirm this is a new scope item before approving. Cost-code assignment to the glazing line item looks correct.",
-    checks: [
-      { label: "Scope match", ok: true },
-      { label: "Duplicate check", ok: false },
-      { label: "Cost-code assignment", ok: true },
-    ],
-  },
-  {
-    id: "wf_dailylog_riverside",
-    type: "Daily Log / Safety Incident Report",
-    title: "Riverside Tower — Site Safety Walk",
-    amount: "$3,914.72",
-    requester: "R. Danforth",
-    approver: "Project Manager",
-    waited: "42m",
-    priority: "low",
-    summary:
-      "18 of 19 daily log entries passed the automated safety policy check. One incident logged during the safety walk carries an associated remediation cost of $312.00 that exceeds the $250 threshold and needs a justification.",
-    checks: [
-      { label: "Photos attached", ok: true },
-      { label: "Duplicate entries", ok: true },
-      { label: "Within policy", ok: false },
-    ],
-  },
-  {
-    id: "wf_drawrec_jun",
-    type: "Draw Reconciliation",
-    title: "Mercury Bank — Riverside Tower Draw, June close",
-    amount: "$482,190.11",
-    requester: "Recon Copilot",
-    approver: "Project Executive",
-    waited: "1h 05m",
-    priority: "high",
-    summary:
-      "398 of 412 transactions auto-matched (96.6%). Two retainage entries are proposed and 14 exceptions are grouped and explained, ready to clear.",
-    checks: [
-      { label: "Balance ties out", ok: true },
-      { label: "Exceptions grouped", ok: true },
-      { label: "Retainage entries proposed", ok: true },
-    ],
-  },
-  {
-    id: "wf_subpay_ironclad",
-    type: "Subcontractor Payment Approval",
-    title: "Ironclad Steel Supply — Progress Payment",
-    amount: "$6,540.00",
-    requester: "Payments Copilot",
-    approver: "Project Executive",
-    waited: "2h 12m",
-    priority: "high",
-    summary:
-      "Ironclad Steel Supply's progress payment has been verified against contract terms. The executed lien waiver for this billing period has not yet been received — hold until it's on file, otherwise reject and request resubmission.",
-    checks: [
-      { label: "Subcontractor verified", ok: true },
-      { label: "Lien waiver on file", ok: false },
-      { label: "Within contract terms", ok: true },
-    ],
-  },
-];
 
 const PRIORITY_META: Record<ApprovalItem["priority"], { label: string; cls: string }> = {
   high: { label: "High", cls: "bg-destructive/10 border-destructive/30 text-destructive" },
@@ -106,10 +26,18 @@ const PRIORITY_META: Record<ApprovalItem["priority"], { label: string; cls: stri
 
 function Approvals() {
   const { isManager } = useSession();
-  const [items, setItems] = useState(INITIAL);
+  // Starts empty on the server (and on first client render, to match) — the
+  // localStorage-backed data loads client-only in the effect below, avoiding
+  // a hydration mismatch if an item was added since the last SSR pass.
+  const [items, setItems] = useState<ApprovalItem[]>([]);
   const [decided, setDecided] = useState<{ item: ApprovalItem; decision: Decision }[]>([]);
 
+  useEffect(() => {
+    setItems(listApprovalItems());
+  }, []);
+
   const decide = (item: ApprovalItem, decision: Decision) => {
+    decideApprovalItem(item.id, decision);
     setItems((cur) => cur.filter((i) => i.id !== item.id));
     setDecided((cur) => [{ item, decision }, ...cur]);
   };

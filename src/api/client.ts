@@ -502,9 +502,646 @@ function dummyListAuditEvents(limit?: number): AuditEvent[] {
   return limit ? sorted.slice(0, limit) : sorted;
 }
 
+// --- workflow runs (Workflows page) & approval items (Approvals page) ------
+// Both pages read from these persisted stores instead of hardcoded arrays, so
+// a workflow triggered from the AI Assistant actually shows up there.
+export type WfStatus = "running" | "awaiting_approval" | "completed" | "failed";
+export type StepKind = "trigger" | "extract" | "match" | "validate" | "approve" | "output";
+export type WorkflowStep = { label: string; system: string; kind: StepKind; failed?: boolean };
+export type WorkflowRun = {
+  id: string;
+  name: string;
+  status: WfStatus;
+  waiting: string;
+  decision: string | null;
+  started: string;
+  updated: string;
+  flow: WorkflowStep[];
+};
+
+const WORKFLOW_RUNS_KEY = "aios.dummy_workflow_runs";
+
+function formatNow(): string {
+  return new Date().toLocaleString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+// The 5 official Construction workflows from the POC spec come first, in spec
+// order, each with 2 sample runs across different projects/subs. The extra
+// (non-spec) workflows follow below.
+function seedWorkflowRuns(): WorkflowRun[] {
+  return [
+    {
+      id: "wf_rfi_2214",
+      name: "RFI Response & Approval — RFI-2214",
+      status: "awaiting_approval",
+      waiting: "PM approval",
+      decision: null,
+      started: "Jul 13, 2026 09:41",
+      updated: "Jul 13, 2026 09:44",
+      flow: [
+        { label: "RFI submitted", system: "Email Inbox", kind: "trigger" },
+        { label: "Extract RFI details", system: "Document AI", kind: "extract" },
+        { label: "Drawing/spec lookup", system: "Procore", kind: "match" },
+        { label: "Cost-code assignment", system: "Rules Engine", kind: "validate" },
+        { label: "PM approval", system: "Approvals", kind: "approve" },
+        { label: "Post RFI response", system: "Procore", kind: "output" },
+      ],
+    },
+    {
+      id: "wf_rfi_1187",
+      name: "RFI Response & Approval — RFI-1187",
+      status: "completed",
+      waiting: "—",
+      decision: "approved",
+      started: "Jul 09, 2026 11:20",
+      updated: "Jul 09, 2026 11:26",
+      flow: [
+        { label: "RFI submitted", system: "Email Inbox", kind: "trigger" },
+        { label: "Extract RFI details", system: "Document AI", kind: "extract" },
+        { label: "Drawing/spec lookup", system: "Procore", kind: "match" },
+        { label: "Cost-code assignment", system: "Rules Engine", kind: "validate" },
+        { label: "PM approval", system: "Approvals", kind: "approve" },
+        { label: "Post RFI response", system: "Procore", kind: "output" },
+      ],
+    },
+    {
+      id: "wf_changeorder_co2231",
+      name: "Change Order Copilot — CO-2231",
+      status: "awaiting_approval",
+      waiting: "PM approval",
+      decision: null,
+      started: "Jul 13, 2026 10:05",
+      updated: "Jul 13, 2026 10:09",
+      flow: [
+        { label: "Change request submitted", system: "Procore", kind: "trigger" },
+        { label: "Retrieve supporting documents", system: "Email", kind: "extract" },
+        { label: "Retrieve budget + schedule", system: "Procore", kind: "match" },
+        { label: "Calculate cost/schedule impact", system: "Rules Engine", kind: "validate" },
+        { label: "PM approval", system: "Approvals", kind: "approve" },
+        { label: "Create change order", system: "Procore", kind: "output" },
+      ],
+    },
+    {
+      id: "wf_changeorder_co0842",
+      name: "Change Order Copilot — CO-0842",
+      status: "completed",
+      waiting: "—",
+      decision: "approved",
+      started: "Jul 08, 2026 09:00",
+      updated: "Jul 08, 2026 09:07",
+      flow: [
+        { label: "Change request submitted", system: "Procore", kind: "trigger" },
+        { label: "Retrieve supporting documents", system: "Email", kind: "extract" },
+        { label: "Retrieve budget + schedule", system: "Procore", kind: "match" },
+        { label: "Calculate cost/schedule impact", system: "Rules Engine", kind: "validate" },
+        { label: "PM approval", system: "Approvals", kind: "approve" },
+        { label: "Create change order", system: "Procore", kind: "output" },
+      ],
+    },
+    {
+      id: "wf_dailysitereport_riverside",
+      name: "Daily Site Report — Riverside Tower",
+      status: "completed",
+      waiting: "—",
+      decision: "approved",
+      started: "Jul 12, 2026 17:00",
+      updated: "Jul 12, 2026 17:04",
+      flow: [
+        { label: "End of workday", system: "Scheduler", kind: "trigger" },
+        { label: "Collect site emails + photos", system: "Email", kind: "extract" },
+        { label: "Retrieve task + equipment status", system: "Procore", kind: "match" },
+        { label: "Generate daily report", system: "Document AI", kind: "validate" },
+        { label: "PM approval", system: "Approvals", kind: "approve" },
+        { label: "Email daily report", system: "Email", kind: "output" },
+      ],
+    },
+    {
+      id: "wf_dailysitereport_hwy12",
+      name: "Daily Site Report — Hwy 12 Bridge",
+      status: "running",
+      waiting: "—",
+      decision: null,
+      started: "Jul 13, 2026 17:00",
+      updated: "Jul 13, 2026 17:02",
+      flow: [
+        { label: "End of workday", system: "Scheduler", kind: "trigger" },
+        { label: "Collect site emails + photos", system: "Email", kind: "extract" },
+        { label: "Retrieve task + equipment status", system: "Procore", kind: "match" },
+        { label: "Generate daily report", system: "Document AI", kind: "validate" },
+        { label: "PM approval", system: "Approvals", kind: "approve" },
+        { label: "Email daily report", system: "Email", kind: "output" },
+      ],
+    },
+    {
+      id: "wf_subinvoice_ironclad",
+      name: "Subcontractor Invoice Verification — Ironclad Steel Supply",
+      status: "awaiting_approval",
+      waiting: "Project Accountant review",
+      decision: null,
+      started: "Jul 13, 2026 08:15",
+      updated: "Jul 13, 2026 08:19",
+      flow: [
+        { label: "Invoice received", system: "Email", kind: "trigger" },
+        { label: "OCR invoice", system: "Document AI", kind: "extract" },
+        { label: "Retrieve purchase order + completed work", system: "Procore", kind: "match" },
+        { label: "Compare invoice, flag discrepancies", system: "Rules Engine", kind: "validate" },
+        { label: "Project Accountant approval", system: "Approvals", kind: "approve" },
+        { label: "Approve payment", system: "Accounting", kind: "output" },
+      ],
+    },
+    {
+      id: "wf_subinvoice_coastal",
+      name: "Subcontractor Invoice Verification — Coastal Glazing LLC",
+      status: "failed",
+      waiting: "—",
+      decision: "rejected",
+      started: "Jul 11, 2026 13:40",
+      updated: "Jul 11, 2026 13:52",
+      flow: [
+        { label: "Invoice received", system: "Email", kind: "trigger" },
+        { label: "OCR invoice", system: "Document AI", kind: "extract" },
+        { label: "Retrieve purchase order + completed work", system: "Procore", kind: "match" },
+        { label: "Compare invoice, flag discrepancies", system: "Rules Engine", kind: "validate" },
+        { label: "Project Accountant approval", system: "Approvals", kind: "approve" },
+        { label: "Approve payment", system: "Accounting", kind: "output", failed: true },
+      ],
+    },
+    {
+      id: "wf_progressreport_jul",
+      name: "Project Progress Report — Riverside Tower",
+      status: "completed",
+      waiting: "—",
+      decision: "approved",
+      started: "Jul 06, 2026 07:00",
+      updated: "Jul 06, 2026 07:06",
+      flow: [
+        { label: "Weekly schedule", system: "Scheduler", kind: "trigger" },
+        { label: "Pull progress + budget", system: "Procore", kind: "extract" },
+        { label: "Pull open RFIs + delays", system: "Primavera P6", kind: "match" },
+        { label: "Generate executive report", system: "Document AI", kind: "validate" },
+        { label: "Construction Director approval", system: "Approvals", kind: "approve" },
+        { label: "Email stakeholders", system: "Email", kind: "output" },
+      ],
+    },
+    {
+      id: "wf_progressreport_metro",
+      name: "Project Progress Report — Metro Campus",
+      status: "running",
+      waiting: "—",
+      decision: null,
+      started: "Jul 13, 2026 07:00",
+      updated: "Jul 13, 2026 07:03",
+      flow: [
+        { label: "Weekly schedule", system: "Scheduler", kind: "trigger" },
+        { label: "Pull progress + budget", system: "Procore", kind: "extract" },
+        { label: "Pull open RFIs + delays", system: "Primavera P6", kind: "match" },
+        { label: "Generate executive report", system: "Document AI", kind: "validate" },
+        { label: "Construction Director approval", system: "Approvals", kind: "approve" },
+        { label: "Email stakeholders", system: "Email", kind: "output" },
+      ],
+    },
+    {
+      id: "wf_drawrec_jun",
+      name: "Draw Reconciliation — June",
+      status: "running",
+      waiting: "—",
+      decision: null,
+      started: "Jul 13, 2026 09:30",
+      updated: "Jul 13, 2026 09:52",
+      flow: [
+        { label: "Bank feed syncs", system: "Mercury Bank", kind: "trigger" },
+        { label: "Pull transactions", system: "Bank Feed", kind: "extract" },
+        { label: "Auto-match ledger", system: "Core Banking", kind: "match" },
+        { label: "Group exceptions", system: "Recon Engine", kind: "validate" },
+        { label: "Project Executive approval", system: "Approvals", kind: "approve" },
+        { label: "Draw close", system: "Ledger", kind: "output" },
+      ],
+    },
+    {
+      id: "wf_jobcostclose_jul",
+      name: "Job Cost Close — July",
+      status: "running",
+      waiting: "—",
+      decision: null,
+      started: "Jul 13, 2026 08:00",
+      updated: "Jul 13, 2026 09:58",
+      flow: [
+        { label: "Kick off close", system: "Scheduler", kind: "trigger" },
+        { label: "Work checklist", system: "Close Engine", kind: "extract" },
+        { label: "Pull cost report", system: "Procore", kind: "match" },
+        { label: "Reconcile accounts", system: "Core Banking", kind: "validate" },
+        { label: "Project Executive approval", system: "Approvals", kind: "approve" },
+        { label: "Job cost ledger lock", system: "Ledger", kind: "output" },
+      ],
+    },
+    {
+      id: "wf_ownerbilling",
+      name: "Owner Billing & Pay Application",
+      status: "completed",
+      waiting: "—",
+      decision: "approved",
+      started: "Jul 12, 2026 16:20",
+      updated: "Jul 12, 2026 16:22",
+      flow: [
+        { label: "Pay application overdue", system: "Procore", kind: "trigger" },
+        { label: "Rank by risk", system: "Billing Engine", kind: "extract" },
+        { label: "Reconcile payments", system: "Bank Feed", kind: "match" },
+        { label: "Draft reminders", system: "Document AI", kind: "validate" },
+        { label: "Project Executive approval", system: "Approvals", kind: "approve" },
+        { label: "Queue emails to Owner", system: "CRM", kind: "output" },
+      ],
+    },
+    {
+      id: "wf_dailylog_riverside",
+      name: "Daily Log & Safety Compliance Audit — Riverside Tower",
+      status: "awaiting_approval",
+      waiting: "PM approval",
+      decision: null,
+      started: "Jul 13, 2026 09:12",
+      updated: "Jul 13, 2026 09:13",
+      flow: [
+        { label: "Daily log submitted", system: "Field App", kind: "trigger" },
+        { label: "Read logs", system: "Document AI", kind: "extract" },
+        { label: "Safety policy check", system: "Rules Engine", kind: "validate" },
+        { label: "PM approval", system: "Approvals", kind: "approve" },
+        { label: "File to Safety Team", system: "Safety Team", kind: "output" },
+      ],
+    },
+    {
+      id: "wf_subonboard_ironclad",
+      name: "Subcontractor Onboarding & Lien Waiver — Ironclad Steel Supply",
+      status: "completed",
+      waiting: "—",
+      decision: "approved",
+      started: "Jun 22, 2026 11:05",
+      updated: "Jun 22, 2026 11:18",
+      flow: [
+        { label: "New subcontractor request", system: "Email", kind: "trigger" },
+        { label: "Read COI + W-9", system: "Document AI", kind: "extract" },
+        { label: "Validate TIN + insurance", system: "Compliance", kind: "validate" },
+        { label: "Project Executive approval", system: "Approvals", kind: "approve" },
+        { label: "Create subcontractor record", system: "Procore", kind: "output" },
+      ],
+    },
+    {
+      id: "wf_permit_q2",
+      name: "Permit & Inspection Compliance — Q2",
+      status: "failed",
+      waiting: "—",
+      decision: "rejected",
+      started: "Jul 10, 2026 14:02",
+      updated: "Jul 10, 2026 14:20",
+      flow: [
+        { label: "Filing deadline", system: "Scheduler", kind: "trigger" },
+        { label: "Review permit status", system: "Procore", kind: "extract" },
+        { label: "Recalculate compliance", system: "Compliance Engine", kind: "match" },
+        { label: "Prepare filing", system: "Document AI", kind: "validate" },
+        { label: "Project Executive approval", system: "Approvals", kind: "approve" },
+        { label: "File permit", system: "Permit Portal", kind: "output", failed: true },
+      ],
+    },
+    {
+      id: "wf_jobcostreport_jun",
+      name: "Job Cost Reporting — June",
+      status: "completed",
+      waiting: "—",
+      decision: "approved",
+      started: "Jul 01, 2026 07:30",
+      updated: "Jul 01, 2026 07:35",
+      flow: [
+        { label: "Select period", system: "Dashboard", kind: "trigger" },
+        { label: "Pull actuals + budget", system: "Procore", kind: "extract" },
+        { label: "Build WIP/cost reports", system: "Reporting Engine", kind: "match" },
+        { label: "Variance commentary", system: "Document AI", kind: "validate" },
+        { label: "Project Executive approval", system: "Approvals", kind: "approve" },
+        { label: "Publish report", system: "Reporting", kind: "output" },
+      ],
+    },
+  ];
+}
+
+export function listWorkflowRuns(): WorkflowRun[] {
+  return readLocal(WORKFLOW_RUNS_KEY, seedWorkflowRuns);
+}
+
+function addWorkflowRun(run: WorkflowRun): void {
+  const runs = readLocal(WORKFLOW_RUNS_KEY, seedWorkflowRuns);
+  writeLocal(WORKFLOW_RUNS_KEY, [run, ...runs]);
+}
+
+function updateWorkflowRun(id: string, patch: Partial<WorkflowRun>): void {
+  const runs = readLocal(WORKFLOW_RUNS_KEY, seedWorkflowRuns);
+  writeLocal(
+    WORKFLOW_RUNS_KEY,
+    runs.map((r) => (r.id === id ? { ...r, ...patch, updated: formatNow() } : r)),
+  );
+}
+
+export type ApprovalDecision = "approved" | "rejected";
+export type ApprovalItem = {
+  id: string;
+  type: string;
+  title: string;
+  amount: string;
+  requester: string;
+  approver: string;
+  waited: string;
+  priority: "high" | "medium" | "low";
+  summary: string;
+  checks: { label: string; ok: boolean }[];
+};
+
+const APPROVAL_ITEMS_KEY = "aios.dummy_approval_items";
+
+function seedApprovalItems(): ApprovalItem[] {
+  return [
+    {
+      id: "wf_co_2231",
+      type: "Change Order Approval",
+      title: "Change Order CO-2231 — Coastal Glazing LLC",
+      amount: "$14,280.00",
+      requester: "Contracts Copilot",
+      approver: "Project Executive",
+      waited: "18m",
+      priority: "medium",
+      summary:
+        "Scope match against the Riverside Tower glazing contract and approved drawings succeeded. CO-2231 was flagged as a possible duplicate of a change order Coastal Glazing LLC submitted last week — confirm this is a new scope item before approving. Cost-code assignment to the glazing line item looks correct.",
+      checks: [
+        { label: "Scope match", ok: true },
+        { label: "Duplicate check", ok: false },
+        { label: "Cost-code assignment", ok: true },
+      ],
+    },
+    {
+      id: "wf_dailylog_riverside",
+      type: "Daily Log / Safety Incident Report",
+      title: "Riverside Tower — Site Safety Walk",
+      amount: "$3,914.72",
+      requester: "R. Danforth",
+      approver: "Project Manager",
+      waited: "42m",
+      priority: "low",
+      summary:
+        "18 of 19 daily log entries passed the automated safety policy check. One incident logged during the safety walk carries an associated remediation cost of $312.00 that exceeds the $250 threshold and needs a justification.",
+      checks: [
+        { label: "Photos attached", ok: true },
+        { label: "Duplicate entries", ok: true },
+        { label: "Within policy", ok: false },
+      ],
+    },
+    {
+      id: "wf_drawrec_jun",
+      type: "Draw Reconciliation",
+      title: "Mercury Bank — Riverside Tower Draw, June close",
+      amount: "$482,190.11",
+      requester: "Recon Copilot",
+      approver: "Project Executive",
+      waited: "1h 05m",
+      priority: "high",
+      summary:
+        "398 of 412 transactions auto-matched (96.6%). Two retainage entries are proposed and 14 exceptions are grouped and explained, ready to clear.",
+      checks: [
+        { label: "Balance ties out", ok: true },
+        { label: "Exceptions grouped", ok: true },
+        { label: "Retainage entries proposed", ok: true },
+      ],
+    },
+    {
+      id: "wf_subpay_ironclad",
+      type: "Subcontractor Payment Approval",
+      title: "Ironclad Steel Supply — Progress Payment",
+      amount: "$6,540.00",
+      requester: "Payments Copilot",
+      approver: "Project Executive",
+      waited: "2h 12m",
+      priority: "high",
+      summary:
+        "Ironclad Steel Supply's progress payment has been verified against contract terms. The executed lien waiver for this billing period has not yet been received — hold until it's on file, otherwise reject and request resubmission.",
+      checks: [
+        { label: "Subcontractor verified", ok: true },
+        { label: "Lien waiver on file", ok: false },
+        { label: "Within contract terms", ok: true },
+      ],
+    },
+  ];
+}
+
+export function listApprovalItems(): ApprovalItem[] {
+  return readLocal(APPROVAL_ITEMS_KEY, seedApprovalItems);
+}
+
+function addApprovalItem(item: ApprovalItem): void {
+  const items = readLocal(APPROVAL_ITEMS_KEY, seedApprovalItems);
+  writeLocal(APPROVAL_ITEMS_KEY, [item, ...items]);
+}
+
+export function decideApprovalItem(id: string, decision: ApprovalDecision): void {
+  const items = readLocal(APPROVAL_ITEMS_KEY, seedApprovalItems);
+  writeLocal(
+    APPROVAL_ITEMS_KEY,
+    items.filter((i) => i.id !== id),
+  );
+  // Approval items and workflow runs share an id where one exists (all 3
+  // copilot-triggered flows, plus a couple of the seeded ones) — reflect the
+  // decision back onto the matching run. A no-op if there's no matching run.
+  updateWorkflowRun(id, {
+    status: decision === "approved" ? "completed" : "failed",
+    waiting: "—",
+    decision,
+  });
+  pushAuditEvent({ action: `approval.${decision}`, resource_kind: "approval", resource_id: id });
+}
+
+// --- copilot triggers — called when the AI Assistant is asked to run one ---
+function refNumber(prefix: string): string {
+  return `${prefix}-${1000 + Math.floor(Math.random() * 9000)}`;
+}
+
+function startRfiCopilot(): WorkflowRun {
+  const ref = refNumber("RFI");
+  const run: WorkflowRun = {
+    id: `wf_rfi_${Date.now().toString(36)}`,
+    name: `RFI Response & Approval — ${ref}`,
+    status: "running",
+    waiting: "—",
+    decision: null,
+    started: formatNow(),
+    updated: formatNow(),
+    flow: [
+      { label: "RFI submitted", system: "Email Inbox", kind: "trigger" },
+      { label: "Extract RFI details", system: "Document AI", kind: "extract" },
+      { label: "Drawing/spec lookup", system: "Procore", kind: "match" },
+      { label: "Cost-code assignment", system: "Rules Engine", kind: "validate" },
+      { label: "PM approval", system: "Approvals", kind: "approve" },
+      { label: "Post RFI response", system: "Procore", kind: "output" },
+    ],
+  };
+  addWorkflowRun(run);
+  pushAuditEvent({
+    action: "workflow.started",
+    resource_kind: "workflow",
+    resource_id: run.id,
+    metadata: { type: "rfi_copilot" },
+  });
+  setTimeout(() => {
+    updateWorkflowRun(run.id, { status: "awaiting_approval", waiting: "PM approval" });
+    addApprovalItem({
+      id: run.id,
+      type: "RFI Approval",
+      title: `RFI ${ref} — drafted response ready for review`,
+      amount: "—",
+      requester: "RFI Copilot",
+      approver: "Project Manager",
+      waited: "0m",
+      priority: "medium",
+      summary: `The RFI Copilot extracted the question, matched it to the relevant drawing and spec sections, and checked for duplicates before drafting a response for ${ref}. Review and approve to post it back to Procore.`,
+      checks: [
+        { label: "Drawing/spec match", ok: true },
+        { label: "Duplicate check", ok: true },
+        { label: "Cost-code assignment", ok: true },
+      ],
+    });
+  }, 4000);
+  return run;
+}
+
+function startChangeOrderCopilot(): WorkflowRun {
+  const ref = refNumber("CO");
+  const run: WorkflowRun = {
+    id: `wf_co_${Date.now().toString(36)}`,
+    name: `Change Order Copilot — ${ref}`,
+    status: "running",
+    waiting: "—",
+    decision: null,
+    started: formatNow(),
+    updated: formatNow(),
+    flow: [
+      { label: "Change request submitted", system: "Procore", kind: "trigger" },
+      { label: "Retrieve supporting documents", system: "Email", kind: "extract" },
+      { label: "Retrieve budget + schedule", system: "Procore", kind: "match" },
+      { label: "Calculate cost/schedule impact", system: "Rules Engine", kind: "validate" },
+      { label: "PM approval", system: "Approvals", kind: "approve" },
+      { label: "Create change order", system: "Procore", kind: "output" },
+    ],
+  };
+  addWorkflowRun(run);
+  pushAuditEvent({
+    action: "workflow.started",
+    resource_kind: "workflow",
+    resource_id: run.id,
+    metadata: { type: "change_order_copilot" },
+  });
+  setTimeout(() => {
+    updateWorkflowRun(run.id, { status: "awaiting_approval", waiting: "PM approval" });
+    addApprovalItem({
+      id: run.id,
+      type: "Change Order Approval",
+      title: `Change Order ${ref} — drafted for review`,
+      amount: "—",
+      requester: "Change Order Copilot",
+      approver: "Project Manager",
+      waited: "0m",
+      priority: "medium",
+      summary: `The Change Order Copilot compared the request against the approved scope, calculated the budget impact, and estimated the schedule delay for ${ref}. Review the executive summary before it's created in Procore.`,
+      checks: [
+        { label: "Scope comparison", ok: true },
+        { label: "Budget impact calculated", ok: true },
+        { label: "Schedule impact estimated", ok: true },
+      ],
+    });
+  }, 4000);
+  return run;
+}
+
+function startDailySiteReportCopilot(): WorkflowRun {
+  const today = formatNow().split(",")[0];
+  const run: WorkflowRun = {
+    id: `wf_dsr_${Date.now().toString(36)}`,
+    name: `Daily Site Report — ${today}`,
+    status: "running",
+    waiting: "—",
+    decision: null,
+    started: formatNow(),
+    updated: formatNow(),
+    flow: [
+      { label: "End of workday", system: "Scheduler", kind: "trigger" },
+      { label: "Collect site emails + photos", system: "Email", kind: "extract" },
+      { label: "Retrieve task + equipment status", system: "Procore", kind: "match" },
+      { label: "Generate daily report", system: "Document AI", kind: "validate" },
+      { label: "PM approval", system: "Approvals", kind: "approve" },
+      { label: "Email daily report", system: "Email", kind: "output" },
+    ],
+  };
+  addWorkflowRun(run);
+  pushAuditEvent({
+    action: "workflow.started",
+    resource_kind: "workflow",
+    resource_id: run.id,
+    metadata: { type: "daily_site_report_copilot" },
+  });
+  setTimeout(() => {
+    updateWorkflowRun(run.id, { status: "awaiting_approval", waiting: "PM approval" });
+    addApprovalItem({
+      id: run.id,
+      type: "Daily Site Report",
+      title: `Daily Site Report — ${today} — ready for review`,
+      amount: "—",
+      requester: "Daily Site Report Copilot",
+      approver: "Project Manager",
+      waited: "0m",
+      priority: "low",
+      summary:
+        "The Daily Site Report Copilot collected today's site emails and photos, summarized work completed against the schedule, and checked equipment usage and safety notes.",
+      checks: [
+        { label: "Work summary generated", ok: true },
+        { label: "Equipment status pulled", ok: true },
+        { label: "No safety issues flagged", ok: true },
+      ],
+    });
+  }, 4000);
+  return run;
+}
+
 // --- AI assistant (keyword-matched canned answers over the dummy platform data) ---
 function dummyAssistantAnswer(message: string, useRag?: boolean): string {
   const q = message.toLowerCase();
+
+  // Action intent — "call/run/start/trigger the X Copilot" actually spawns a
+  // workflow run instead of just describing it.
+  const triggerVerb = /\b(call|run|start|trigger|kick off|kick-off|launch|invoke|fire)\b/.test(q);
+  if (triggerVerb) {
+    if (q.includes("rfi")) {
+      const run = startRfiCopilot();
+      return (
+        `Started the **RFI Copilot** (\`${run.id}\`). It's extracting the RFI, looking up the relevant ` +
+        `drawings and spec sections, and checking for duplicates — it'll land in **Workflows**, then move ` +
+        `to **Approvals** for a Project Manager to sign off in a few seconds.`
+      );
+    }
+    if (q.includes("change order")) {
+      const run = startChangeOrderCopilot();
+      return (
+        `Started the **Change Order Copilot** (\`${run.id}\`). It's calculating the budget and schedule ` +
+        `impact against the approved scope — it'll land in **Workflows**, then move to **Approvals** for a ` +
+        `Project Manager to sign off in a few seconds.`
+      );
+    }
+    if (q.includes("daily site report") || q.includes("site report")) {
+      const run = startDailySiteReportCopilot();
+      return (
+        `Started the **Daily Site Report Copilot** (\`${run.id}\`). It's collecting today's site emails and ` +
+        `photos and pulling task and equipment status — it'll land in **Workflows**, then move to ` +
+        `**Approvals** for a Project Manager to sign off in a few seconds.`
+      );
+    }
+  }
+
   const docs = dummyListDocuments();
   const latest = docs[0];
 

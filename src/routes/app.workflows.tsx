@@ -8,234 +8,20 @@ import {
   Workflow as WorkflowIcon,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 
+import { listWorkflowRuns } from "../api";
+import type { StepKind, WfStatus, WorkflowRun, WorkflowStep } from "../api";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/app/workflows")({ component: Workflows });
 
-/* ─────────────────────────  Types + dummy data  ───────────────────────── */
+/* ─────────────────────────  Types (data now lives in api/client.ts, so a run  ─────
+   triggered from the AI Assistant shows up here too) ───────────────────── */
 
-type WfStatus = "running" | "awaiting_approval" | "completed" | "failed";
-type StepKind = "trigger" | "extract" | "match" | "validate" | "approve" | "output";
+type Row = WorkflowRun;
+type Step = WorkflowStep;
 
-type Step = { label: string; system: string; kind: StepKind; failed?: boolean };
-
-type Row = {
-  id: string;
-  name: string;
-  status: WfStatus;
-  waiting: string;
-  decision: string | null;
-  started: string;
-  updated: string;
-  flow: Step[];
-};
-
-const ROWS: Row[] = [
-  {
-    id: "wf_rfi_2214",
-    name: "RFI Response & Approval",
-    status: "awaiting_approval",
-    waiting: "PM approval",
-    decision: null,
-    started: "Jul 13, 2026 09:41",
-    updated: "Jul 13, 2026 09:44",
-    flow: [
-      { label: "RFI submitted", system: "Email Inbox", kind: "trigger" },
-      { label: "Extract RFI details", system: "Document AI", kind: "extract" },
-      { label: "Drawing/spec lookup", system: "Procore", kind: "match" },
-      { label: "Cost-code assignment", system: "Rules Engine", kind: "validate" },
-      { label: "PM approval", system: "Approvals", kind: "approve" },
-      { label: "Post RFI response", system: "Procore", kind: "output" },
-    ],
-  },
-  {
-    id: "wf_drawrec_jun",
-    name: "Draw Reconciliation — June",
-    status: "running",
-    waiting: "—",
-    decision: null,
-    started: "Jul 13, 2026 09:30",
-    updated: "Jul 13, 2026 09:52",
-    flow: [
-      { label: "Bank feed syncs", system: "Mercury Bank", kind: "trigger" },
-      { label: "Pull transactions", system: "Bank Feed", kind: "extract" },
-      { label: "Auto-match ledger", system: "Core Banking", kind: "match" },
-      { label: "Group exceptions", system: "Recon Engine", kind: "validate" },
-      { label: "Project Executive approval", system: "Approvals", kind: "approve" },
-      { label: "Draw close", system: "Ledger", kind: "output" },
-    ],
-  },
-  {
-    id: "wf_jobcostclose_jul",
-    name: "Job Cost Close — July",
-    status: "running",
-    waiting: "—",
-    decision: null,
-    started: "Jul 13, 2026 08:00",
-    updated: "Jul 13, 2026 09:58",
-    flow: [
-      { label: "Kick off close", system: "Scheduler", kind: "trigger" },
-      { label: "Work checklist", system: "Close Engine", kind: "extract" },
-      { label: "Pull cost report", system: "Procore", kind: "match" },
-      { label: "Reconcile accounts", system: "Core Banking", kind: "validate" },
-      { label: "Project Executive approval", system: "Approvals", kind: "approve" },
-      { label: "Job cost ledger lock", system: "Ledger", kind: "output" },
-    ],
-  },
-  {
-    id: "wf_ownerbilling",
-    name: "Owner Billing & Pay Application",
-    status: "completed",
-    waiting: "—",
-    decision: "approved",
-    started: "Jul 12, 2026 16:20",
-    updated: "Jul 12, 2026 16:22",
-    flow: [
-      { label: "Pay application overdue", system: "Procore", kind: "trigger" },
-      { label: "Rank by risk", system: "Billing Engine", kind: "extract" },
-      { label: "Reconcile payments", system: "Bank Feed", kind: "match" },
-      { label: "Draft reminders", system: "Document AI", kind: "validate" },
-      { label: "Project Executive approval", system: "Approvals", kind: "approve" },
-      { label: "Queue emails to Owner", system: "CRM", kind: "output" },
-    ],
-  },
-  {
-    id: "wf_dailylog_riverside",
-    name: "Daily Log & Safety Compliance Audit — Riverside Tower",
-    status: "awaiting_approval",
-    waiting: "PM approval",
-    decision: null,
-    started: "Jul 13, 2026 09:12",
-    updated: "Jul 13, 2026 09:13",
-    flow: [
-      { label: "Daily log submitted", system: "Field App", kind: "trigger" },
-      { label: "Read logs", system: "Document AI", kind: "extract" },
-      { label: "Safety policy check", system: "Rules Engine", kind: "validate" },
-      { label: "PM approval", system: "Approvals", kind: "approve" },
-      { label: "File to Safety Team", system: "Safety Team", kind: "output" },
-    ],
-  },
-  {
-    id: "wf_subonboard_ironclad",
-    name: "Subcontractor Onboarding & Lien Waiver — Ironclad Steel Supply",
-    status: "completed",
-    waiting: "—",
-    decision: "approved",
-    started: "Jun 22, 2026 11:05",
-    updated: "Jun 22, 2026 11:18",
-    flow: [
-      { label: "New subcontractor request", system: "Email", kind: "trigger" },
-      { label: "Read COI + W-9", system: "Document AI", kind: "extract" },
-      { label: "Validate TIN + insurance", system: "Compliance", kind: "validate" },
-      { label: "Project Executive approval", system: "Approvals", kind: "approve" },
-      { label: "Create subcontractor record", system: "Procore", kind: "output" },
-    ],
-  },
-  {
-    id: "wf_permit_q2",
-    name: "Permit & Inspection Compliance — Q2",
-    status: "failed",
-    waiting: "—",
-    decision: "rejected",
-    started: "Jul 10, 2026 14:02",
-    updated: "Jul 10, 2026 14:20",
-    flow: [
-      { label: "Filing deadline", system: "Scheduler", kind: "trigger" },
-      { label: "Review permit status", system: "Procore", kind: "extract" },
-      { label: "Recalculate compliance", system: "Compliance Engine", kind: "match" },
-      { label: "Prepare filing", system: "Document AI", kind: "validate" },
-      { label: "Project Executive approval", system: "Approvals", kind: "approve" },
-      { label: "File permit", system: "Permit Portal", kind: "output", failed: true },
-    ],
-  },
-  {
-    id: "wf_jobcostreport_jun",
-    name: "Job Cost Reporting — June",
-    status: "completed",
-    waiting: "—",
-    decision: "approved",
-    started: "Jul 01, 2026 07:30",
-    updated: "Jul 01, 2026 07:35",
-    flow: [
-      { label: "Select period", system: "Dashboard", kind: "trigger" },
-      { label: "Pull actuals + budget", system: "Procore", kind: "extract" },
-      { label: "Build WIP/cost reports", system: "Reporting Engine", kind: "match" },
-      { label: "Variance commentary", system: "Document AI", kind: "validate" },
-      { label: "Project Executive approval", system: "Approvals", kind: "approve" },
-      { label: "Publish report", system: "Reporting", kind: "output" },
-    ],
-  },
-  {
-    id: "wf_changeorder_co2231",
-    name: "Change Order Copilot — CO-2231",
-    status: "awaiting_approval",
-    waiting: "PM approval",
-    decision: null,
-    started: "Jul 13, 2026 10:05",
-    updated: "Jul 13, 2026 10:09",
-    flow: [
-      { label: "Change request submitted", system: "Procore", kind: "trigger" },
-      { label: "Retrieve supporting documents", system: "Email", kind: "extract" },
-      { label: "Retrieve budget + schedule", system: "Procore", kind: "match" },
-      { label: "Calculate cost/schedule impact", system: "Rules Engine", kind: "validate" },
-      { label: "PM approval", system: "Approvals", kind: "approve" },
-      { label: "Create change order", system: "Procore", kind: "output" },
-    ],
-  },
-  {
-    id: "wf_dailysitereport_riverside",
-    name: "Daily Site Report — Riverside Tower",
-    status: "completed",
-    waiting: "—",
-    decision: "approved",
-    started: "Jul 12, 2026 17:00",
-    updated: "Jul 12, 2026 17:04",
-    flow: [
-      { label: "End of workday", system: "Scheduler", kind: "trigger" },
-      { label: "Collect site emails + photos", system: "Email", kind: "extract" },
-      { label: "Retrieve task + equipment status", system: "Procore", kind: "match" },
-      { label: "Generate daily report", system: "Document AI", kind: "validate" },
-      { label: "PM approval", system: "Approvals", kind: "approve" },
-      { label: "Email daily report", system: "Email", kind: "output" },
-    ],
-  },
-  {
-    id: "wf_subinvoice_ironclad",
-    name: "Subcontractor Invoice Verification — Ironclad Steel Supply",
-    status: "awaiting_approval",
-    waiting: "Project Accountant review",
-    decision: null,
-    started: "Jul 13, 2026 08:15",
-    updated: "Jul 13, 2026 08:19",
-    flow: [
-      { label: "Invoice received", system: "Email", kind: "trigger" },
-      { label: "OCR invoice", system: "Document AI", kind: "extract" },
-      { label: "Retrieve purchase order + completed work", system: "Procore", kind: "match" },
-      { label: "Compare invoice, flag discrepancies", system: "Rules Engine", kind: "validate" },
-      { label: "Project Accountant approval", system: "Approvals", kind: "approve" },
-      { label: "Approve payment", system: "Accounting", kind: "output" },
-    ],
-  },
-  {
-    id: "wf_progressreport_jul",
-    name: "Project Progress Report — Riverside Tower",
-    status: "completed",
-    waiting: "—",
-    decision: "approved",
-    started: "Jul 06, 2026 07:00",
-    updated: "Jul 06, 2026 07:06",
-    flow: [
-      { label: "Weekly schedule", system: "Scheduler", kind: "trigger" },
-      { label: "Pull progress + budget", system: "Procore", kind: "extract" },
-      { label: "Pull open RFIs + delays", system: "Primavera P6", kind: "match" },
-      { label: "Generate executive report", system: "Document AI", kind: "validate" },
-      { label: "Construction Director approval", system: "Approvals", kind: "approve" },
-      { label: "Email stakeholders", system: "Email", kind: "output" },
-    ],
-  },
-];
 
 const STATUS_META: Record<WfStatus, { label: string; cls: string }> = {
   running: { label: "Running", cls: "bg-sky-500/10 border-sky-500/30 text-sky-500" },
@@ -256,11 +42,21 @@ const KIND_META: Record<StepKind, { label: string; dot: string; ring: string; te
 /* ─────────────────────────  Page  ───────────────────────── */
 
 function Workflows() {
-  const [expanded, setExpanded] = useState<string | null>(ROWS[0].id);
+  // Starts empty on the server (and on first client render, to match) — the
+  // localStorage-backed data loads client-only in the effect below, avoiding
+  // a hydration mismatch if a run was added since the last SSR pass.
+  const [rows, setRows] = useState<Row[]>([]);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
-  const running = ROWS.filter((r) => r.status === "running").length;
-  const pending = ROWS.filter((r) => r.status === "awaiting_approval").length;
-  const completed = ROWS.filter((r) => r.status === "completed").length;
+  useEffect(() => {
+    const loaded = listWorkflowRuns();
+    setRows(loaded);
+    setExpanded(loaded[0]?.id ?? null);
+  }, []);
+
+  const running = rows.filter((r) => r.status === "running").length;
+  const pending = rows.filter((r) => r.status === "awaiting_approval").length;
+  const completed = rows.filter((r) => r.status === "completed").length;
 
   return (
     <div className="space-y-7">
@@ -284,7 +80,7 @@ function Workflows() {
         <Kpi icon={Loader2} label="Running" value={running} tone="text-sky-500" />
         <Kpi icon={ClipboardCheck} label="Awaiting Approval" value={pending} tone="text-amber-500" />
         <Kpi icon={CheckCircle2} label="Completed" value={completed} tone="text-emerald-500" />
-        <Kpi icon={WorkflowIcon} label="Total" value={ROWS.length} tone="text-foreground" />
+        <Kpi icon={WorkflowIcon} label="Total" value={rows.length} tone="text-foreground" />
       </div>
 
       {/* Table with expandable flow graphs */}
@@ -302,7 +98,7 @@ function Workflows() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {ROWS.map((r) => {
+              {rows.map((r) => {
                 const meta = STATUS_META[r.status];
                 const open = expanded === r.id;
                 return (
