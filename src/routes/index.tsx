@@ -1,11 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
+  AlertTriangle,
   ArrowRight,
   BarChart3,
   Check,
   CheckCircle2,
+  ChevronDown,
   Clock,
+  ClipboardCheck,
+  FileDiff,
   FileText,
+  HelpCircle,
   Landmark,
   Mail,
   Moon,
@@ -13,6 +18,8 @@ import {
   ShieldCheck,
   Sparkles,
   Sun,
+  Target,
+  TrendingUp,
   User,
   Wand2,
   Workflow,
@@ -22,6 +29,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import { toast } from "sonner";
 
 import { ApiError, api } from "../api";
@@ -37,7 +45,7 @@ export const Route = createFileRoute("/")({
 
 // ---------------- Content config ----------------
 
-type WorkflowStep = { label: string; detail: string };
+type WorkflowStep = { label: string; detail: string; example: string };
 type WorkflowContent = {
   title: string;
   before: string;
@@ -51,17 +59,43 @@ const HERO = {
 };
 
 // The single, construction-specific workflow shown in the before/after section.
+// Each step carries a short "example" — click a step to see it grounded in a
+// real (dummy) RFI, so the flow reads as something that actually runs.
 const CLOSE_WORKFLOW: WorkflowContent = {
   title: "RFI-to-response, done in minutes.",
   before: "45+ minutes per RFI, digging through drawings, specs, and email threads.",
   after: "5 minutes: AI extracts, matches, and validates — you review and approve.",
   steps: [
-    { label: "RFI arrives", detail: "A subcontractor submits an RFI on Riverside Tower." },
-    { label: "Extract", detail: "OCR reads the attachments — drawings, photos, and spec callouts." },
-    { label: "Match", detail: "Looks up the relevant drawings and specs; checks for a duplicate RFI." },
-    { label: "Validate", detail: "Cost-code assignment, routing, and policy checks applied." },
-    { label: "Approve", detail: "Your PM reviews the draft response and approves in one click." },
-    { label: "Post", detail: "Response synced back to Procore, Autodesk, or Buildertrend." },
+    {
+      label: "RFI arrives",
+      detail: "A subcontractor submits an RFI on Riverside Tower.",
+      example: "RFI-2214 submitted by Apex Building Materials.",
+    },
+    {
+      label: "Extract",
+      detail: "OCR reads the attachments — drawings, photos, and spec callouts.",
+      example: "Reads drawing sheet A-101 and spec section 03 30 00.",
+    },
+    {
+      label: "Match",
+      detail: "Looks up the relevant drawings and specs; checks for a duplicate RFI.",
+      example: "No duplicate found — matched to spec section 03 30 00, Cast-in-Place Concrete.",
+    },
+    {
+      label: "Validate",
+      detail: "Cost-code assignment, routing, and policy checks applied.",
+      example: "Cost code 03 30 00 assigned; routed to the Project Manager.",
+    },
+    {
+      label: "Approve",
+      detail: "Your PM reviews the draft response and approves in one click.",
+      example: "Approved by the PM in 2 minutes — no edits needed.",
+    },
+    {
+      label: "Post",
+      detail: "Response synced back to Procore, Autodesk, or Buildertrend.",
+      example: "Synced to Procore as the official RFI-2214 response.",
+    },
   ],
 };
 
@@ -475,6 +509,7 @@ function IndexContent() {
     >
       <Nav onLogin={() => setAuthOpen(true)} onBookDemo={onBookDemo} />
       <Hero onBookDemo={onBookDemo} />
+      <FeatureSpotlight />
       <IntegrationCatalog />
       <CopilotLibrary />
       <CoreDiagram />
@@ -547,53 +582,466 @@ const HERO_TRUST: { icon: LucideIcon; label: string }[] = [
   { icon: ScrollText, label: "Full audit trail on every action" },
 ];
 
+// Fires once, shortly after mount, so the hero content and mockup card ease in
+// on first paint (this section is above the fold, so we animate on mount
+// rather than on scroll — see useInView for the scroll-triggered version used
+// further down the page).
+function useMountedIn(delay = 60) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setMounted(true);
+      return;
+    }
+    const id = setTimeout(() => setMounted(true), delay);
+    return () => clearTimeout(id);
+  }, [delay]);
+  return mounted;
+}
+
 function Hero({ onBookDemo }: { onBookDemo: () => void }) {
+  const mounted = useMountedIn(60);
+  const mockupMounted = useMountedIn(200);
+
   return (
-    <section className="relative border-b border-border/60">
+    <section className="relative overflow-hidden border-b border-border/60">
       {/* Decorative layer is clipped on its own so it never overflows the section. */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute inset-0 grid-bg opacity-60" />
         <div className="absolute -top-44 left-1/2 h-[30rem] w-[60rem] -translate-x-1/2 rounded-full bg-primary/25 blur-3xl" />
         <div className="absolute -top-10 right-0 h-80 w-80 rounded-full bg-primary-2/20 blur-3xl" />
       </div>
-      <div className="relative mx-auto max-w-7xl px-5 py-20 md:py-28">
-        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
-          <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-          Built for project executives, PMs & superintendents
-        </div>
-        <h1 className="max-w-3xl text-4xl font-semibold leading-[1.05] tracking-tight md:text-6xl">
-          {HERO.tagline}
-        </h1>
-        <p className="mt-5 max-w-2xl text-base text-muted-foreground md:text-lg">{HERO.sub}</p>
+      <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-5 py-20 md:py-28 lg:grid-cols-[1.05fr_1fr]">
+        <div
+          className={cn(
+            "transition duration-700 ease-out",
+            mounted ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0",
+          )}
+        >
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
+            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+            Built for project executives, PMs & superintendents
+          </div>
+          <h1 className="max-w-xl text-4xl font-semibold leading-[1.05] tracking-tight md:text-6xl">
+            {HERO.tagline}
+          </h1>
+          <p className="mt-5 max-w-xl text-base text-muted-foreground md:text-lg">{HERO.sub}</p>
 
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-stretch">
-          <button
-            onClick={onBookDemo}
-            className="brand-gradient inline-flex items-center justify-center rounded-xl px-6 py-3 text-sm font-semibold uppercase tracking-wide text-primary-foreground shadow-lg shadow-primary/30 transition hover:-translate-y-0.5 hover:opacity-95"
-          >
-            Book a demo
-          </button>
-          <a
-            href="#copilots"
-            className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-6 py-3 text-sm font-semibold uppercase tracking-wide text-foreground transition hover:border-primary hover:text-primary"
-          >
-            See the copilots
-          </a>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-stretch">
+            <button
+              onClick={onBookDemo}
+              className="brand-gradient inline-flex items-center justify-center rounded-xl px-6 py-3 text-sm font-semibold uppercase tracking-wide text-primary-foreground shadow-lg shadow-primary/30 transition hover:-translate-y-0.5 hover:opacity-95"
+            >
+              Book a demo
+            </button>
+            <a
+              href="#copilots"
+              className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-6 py-3 text-sm font-semibold uppercase tracking-wide text-foreground transition hover:border-primary hover:text-primary"
+            >
+              See the copilots
+            </a>
+          </div>
+
+          <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-x-8 sm:gap-y-3">
+            {HERO_TRUST.map((t) => {
+              const Icon = t.icon;
+              return (
+                <div key={t.label} className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Icon className="h-4 w-4 shrink-0 text-primary" />
+                  {t.label}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
-        <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-x-8 sm:gap-y-3">
-          {HERO_TRUST.map((t) => {
-            const Icon = t.icon;
-            return (
-              <div key={t.label} className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Icon className="h-4 w-4 shrink-0 text-primary" />
-                {t.label}
-              </div>
-            );
-          })}
+        <div
+          className={cn(
+            "transition duration-700 ease-out",
+            mockupMounted ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0",
+          )}
+        >
+          <RiskOverviewCard />
         </div>
       </div>
     </section>
+  );
+}
+
+// ---------------- Hero mockup: Project Risk Overview ----------------
+
+const RISK_PROJECTS = ["Riverside Tower", "Hwy 12 Bridge", "Metro Campus", "Plant Retrofit"];
+
+const RISK_STATS: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  hint: string;
+  tone?: "warn" | "bad";
+}[] = [
+  { icon: HelpCircle, label: "Open RFIs", value: "24", hint: "6 due this week" },
+  { icon: ClipboardCheck, label: "Overdue submittals", value: "5", hint: "2 ball-in-court: GC", tone: "warn" },
+  { icon: AlertTriangle, label: "Schedule risk", value: "Med / High", hint: "3 activities flagged", tone: "bad" },
+  { icon: FileDiff, label: "Change orders", value: "8 pending", hint: "$412k in review" },
+];
+
+// Decorative sparkline data — a plausible 8-week trend, not tied to a query.
+const RESPONSE_TREND = [
+  { v: 42 },
+  { v: 38 },
+  { v: 44 },
+  { v: 40 },
+  { v: 50 },
+  { v: 54 },
+  { v: 58 },
+  { v: 63 },
+];
+
+function RiskOverviewCard() {
+  const [activeProject, setActiveProject] = useState(RISK_PROJECTS[0]);
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-xl shadow-black/5">
+      {/* browser-chrome header, mirrors a real app screenshot */}
+      <div className="flex items-center gap-1.5 border-b border-border bg-surface-2/60 px-4 py-3">
+        <span className="h-2.5 w-2.5 rounded-full bg-destructive/40" />
+        <span className="h-2.5 w-2.5 rounded-full bg-amber-400/60" />
+        <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/60" />
+        <span className="ml-2 text-xs font-medium text-muted-foreground">Project Risk Overview</span>
+      </div>
+      <div className="grid grid-cols-[112px_1fr] sm:grid-cols-[132px_1fr]">
+        <div className="border-r border-border p-3">
+          <div className="mb-2 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
+            Projects
+          </div>
+          <div className="space-y-1">
+            {RISK_PROJECTS.map((p) => (
+              <button
+                key={p}
+                onClick={() => setActiveProject(p)}
+                className={cn(
+                  "block w-full truncate rounded-md px-2 py-1.5 text-left text-[11px] transition",
+                  activeProject === p
+                    ? "bg-primary/10 font-semibold text-primary"
+                    : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
+                )}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="p-3.5">
+          <div className="grid grid-cols-2 gap-2">
+            {RISK_STATS.map((s) => {
+              const Icon = s.icon;
+              return (
+                <div key={s.label} className="rounded-lg border border-border bg-background/60 p-2.5">
+                  <div className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
+                    <Icon className="h-3 w-3 shrink-0" />
+                    <span className="truncate">{s.label}</span>
+                  </div>
+                  <div
+                    className={cn(
+                      "mt-1 text-[15px] font-semibold leading-none",
+                      s.tone === "bad"
+                        ? "text-destructive"
+                        : s.tone === "warn"
+                          ? "text-amber-500"
+                          : "text-foreground",
+                    )}
+                  >
+                    {s.value}
+                  </div>
+                  <div className="mt-1 truncate text-[10px] text-muted-foreground">{s.hint}</div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-2 rounded-lg border border-border bg-background/60 p-2.5">
+            <div className="flex items-center justify-between font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
+              <span>Response time (30d)</span>
+              <TrendingUp className="h-3 w-3 shrink-0 text-emerald-500" />
+            </div>
+            <div className="mt-1.5 h-12 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={RESPONSE_TREND} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
+                  <defs>
+                    <linearGradient id="heroTrend" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <Area
+                    type="monotone"
+                    dataKey="v"
+                    stroke="var(--primary)"
+                    strokeWidth={2}
+                    fill="url(#heroTrend)"
+                    isAnimationActive={false}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------- Feature spotlight (AI document control) ----------------
+
+type SpotlightPoint = { icon: LucideIcon; label: string; text: string };
+
+const SPOTLIGHT_POINTS: SpotlightPoint[] = [
+  {
+    icon: AlertTriangle,
+    label: "Pain",
+    text: "RFIs, submittals, and change orders live across email, PDFs, and shared drives. Items slip past SLA, versions conflict, and no one has a reliable status view.",
+  },
+  {
+    icon: Workflow,
+    label: "Current workflow",
+    text: "PMs log documents by hand, chase responses over email, and reconcile versions across Procore, Bluebeam, and file shares.",
+  },
+  {
+    icon: Sparkles,
+    label: "AI workflow",
+    text: "The platform ingests documents from your existing tools, classifies each item, extracts key fields — spec section, ball-in-court, due date, cost impact — routes it to the right reviewer, and flags anything overdue.",
+  },
+  {
+    icon: Target,
+    label: "Business outcome",
+    text: "Faster response cycles, fewer missed items, and one auditable record per project.",
+  },
+  {
+    icon: TrendingUp,
+    label: "ROI",
+    text: "6 hrs saved per PM per week · 35% faster RFI turnaround.",
+  },
+];
+
+type DocStatus = "Overdue" | "Due soon" | "On track";
+type DocRow = {
+  item: string;
+  ballInCourt: string;
+  due: string;
+  status: DocStatus;
+  costImpact: string;
+  extracted: string;
+};
+type DocTab = "rfis" | "submittals" | "changeOrders";
+
+const DOC_CONTROL_TABS: { key: DocTab; label: string; rows: DocRow[] }[] = [
+  {
+    key: "rfis",
+    label: "RFIs",
+    rows: [
+      {
+        item: "RFI-2214",
+        ballInCourt: "GC",
+        due: "Jul 08",
+        status: "Overdue",
+        costImpact: "$18k",
+        extracted: "Apex Building Materials · Spec section 03 30 00 · Ball-in-court: GC · Est. cost impact $18k",
+      },
+      {
+        item: "RFI-2231",
+        ballInCourt: "Architect",
+        due: "Jul 14",
+        status: "Due soon",
+        costImpact: "—",
+        extracted: "Coastal Glazing LLC · Spec section 08 44 00 · Ball-in-court: Architect",
+      },
+      {
+        item: "RFI-2198",
+        ballInCourt: "Engineer",
+        due: "Jun 30",
+        status: "On track",
+        costImpact: "—",
+        extracted: "Ironclad Steel Supply · Spec section 05 12 00 · Ball-in-court: Engineer",
+      },
+    ],
+  },
+  {
+    key: "submittals",
+    label: "Submittals",
+    rows: [
+      {
+        item: "SUB-4482",
+        ballInCourt: "Engineer",
+        due: "Jun 22",
+        status: "On track",
+        costImpact: "—",
+        extracted: "Ironclad Steel Supply · Structural steel framing · Approved Jun 22",
+      },
+      {
+        item: "SUB-4491",
+        ballInCourt: "Architect",
+        due: "Jul 19",
+        status: "Due soon",
+        costImpact: "—",
+        extracted: "Coastal Glazing LLC · Curtain wall shop drawings · Due Jul 19",
+      },
+    ],
+  },
+  {
+    key: "changeOrders",
+    label: "Change Orders",
+    rows: [
+      {
+        item: "CO-2231",
+        ballInCourt: "GC",
+        due: "Jul 09",
+        status: "Overdue",
+        costImpact: "$14.3k",
+        extracted: "Coastal Glazing LLC · Possible duplicate flagged · Cost code 08 44 00 · $14,280",
+      },
+      {
+        item: "CO-2240",
+        ballInCourt: "Owner",
+        due: "Jul 21",
+        status: "Due soon",
+        costImpact: "$6.5k",
+        extracted: "Ironclad Steel Supply · Awaiting owner sign-off · $6,540",
+      },
+    ],
+  },
+];
+
+const STATUS_CLS: Record<DocStatus, string> = {
+  Overdue: "bg-destructive/10 text-destructive",
+  "Due soon": "bg-amber-500/10 text-amber-500",
+  "On track": "bg-emerald-500/10 text-emerald-500",
+};
+
+function FeatureSpotlight() {
+  const heading = useInView<HTMLDivElement>();
+  const left = useInView<HTMLDivElement>();
+  const right = useInView<HTMLDivElement>();
+
+  return (
+    <section className="border-b border-border/60 py-20">
+      <div className="mx-auto max-w-7xl px-5">
+        <div
+          ref={heading.ref}
+          className={cn("reveal mb-12 flex max-w-2xl flex-col gap-3", heading.inView && "in-view")}
+        >
+          <span className="font-mono text-xs uppercase tracking-wider text-primary">
+            Feature spotlight
+          </span>
+          <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
+            AI document control for RFIs, submittals, and change orders.
+          </h2>
+        </div>
+
+        <div className="grid gap-10 lg:grid-cols-[1fr_1.15fr] lg:items-center">
+          <div ref={left.ref} className={cn("reveal space-y-6", left.inView && "in-view")}>
+            {SPOTLIGHT_POINTS.map((p) => {
+              const Icon = p.icon;
+              return (
+                <div key={p.label} className="flex gap-3.5">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-border bg-surface text-primary">
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <div>
+                    <div className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+                      {p.label}
+                    </div>
+                    <p className="mt-1 text-sm leading-relaxed text-foreground/90">{p.text}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div
+            ref={right.ref}
+            className={cn("reveal", right.inView && "in-view")}
+            style={{ transitionDelay: right.inView ? "120ms" : "0ms" }}
+          >
+            <DocumentControlCard />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function DocumentControlCard() {
+  const [tab, setTab] = useState<DocTab>("rfis");
+  const [rowIdx, setRowIdx] = useState(0);
+  const active = DOC_CONTROL_TABS.find((t) => t.key === tab) ?? DOC_CONTROL_TABS[0];
+  const row = active.rows[rowIdx] ?? active.rows[0];
+
+  const selectTab = (key: DocTab) => {
+    setTab(key);
+    setRowIdx(0);
+  };
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-xl shadow-black/5">
+      <div className="border-b border-border bg-surface-2/60 px-4 py-3 text-xs font-medium text-muted-foreground">
+        Document Control
+      </div>
+      <div className="flex gap-1 border-b border-border px-3 pt-2">
+        {DOC_CONTROL_TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => selectTab(t.key)}
+            className={cn(
+              "rounded-t-lg px-3 py-1.5 text-xs font-medium transition",
+              tab === t.key
+                ? "border border-b-0 border-border bg-background text-primary"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-xs">
+          <thead>
+            <tr className="text-muted-foreground">
+              <th className="px-4 py-2 font-medium">Item #</th>
+              <th className="px-4 py-2 font-medium">Ball-in-court</th>
+              <th className="px-4 py-2 font-medium">Due date</th>
+              <th className="px-4 py-2 font-medium">Status</th>
+              <th className="px-4 py-2 font-medium">Cost impact</th>
+            </tr>
+          </thead>
+          <tbody>
+            {active.rows.map((r, i) => (
+              <tr
+                key={r.item}
+                onClick={() => setRowIdx(i)}
+                className={cn(
+                  "cursor-pointer border-t border-border/60 transition hover:bg-surface-2",
+                  rowIdx === i && "bg-primary/5",
+                )}
+              >
+                <td className="px-4 py-2.5 font-medium text-foreground">{r.item}</td>
+                <td className="px-4 py-2.5 text-muted-foreground">{r.ballInCourt}</td>
+                <td className="px-4 py-2.5 text-muted-foreground">{r.due}</td>
+                <td className="px-4 py-2.5">
+                  <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", STATUS_CLS[r.status])}>
+                    {r.status}
+                  </span>
+                </td>
+                <td className="px-4 py-2.5 text-muted-foreground">{r.costImpact}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="border-t border-border bg-surface-2/50 px-4 py-3">
+        <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          {row.item} — AI-extracted fields
+        </div>
+        <div className="mt-1 text-xs text-foreground/90">{row.extracted}</div>
+      </div>
+    </div>
   );
 }
 
@@ -690,10 +1138,15 @@ const CORE_CAPABILITIES: CoreCapability[] = [
 
 function CoreDiagram() {
   const [selected, setSelected] = useState<CoreCapability | null>(null);
+  const heading = useInView<HTMLDivElement>();
+  const grid = useInView<HTMLDivElement>();
   return (
     <section id="platform" className="border-b border-border/60 py-20">
       <div className="mx-auto max-w-7xl px-5">
-        <div className="mb-12 flex max-w-2xl flex-col gap-3">
+        <div
+          ref={heading.ref}
+          className={cn("reveal mb-12 flex max-w-2xl flex-col gap-3", heading.inView && "in-view")}
+        >
           <span className="font-mono text-xs uppercase tracking-wider text-primary">
             The construction core
           </span>
@@ -707,7 +1160,10 @@ function CoreDiagram() {
             to see what it does.
           </p>
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-5 lg:grid-cols-3">
+        <div
+          ref={grid.ref}
+          className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-5 lg:grid-cols-3"
+        >
           {CORE_CAPABILITIES.map((s, i) => {
             const Icon = s.icon;
             return (
@@ -716,7 +1172,11 @@ function CoreDiagram() {
                 type="button"
                 onClick={() => setSelected(s)}
                 aria-label={`Learn more about ${s.name}`}
-                className="group flex h-full flex-col rounded-xl border border-border bg-surface p-5 text-left transition duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 md:p-6"
+                className={cn(
+                  "reveal group flex h-full flex-col rounded-xl border border-border bg-surface p-5 text-left transition duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 md:p-6",
+                  grid.inView && "in-view",
+                )}
+                style={{ transitionDelay: `${i * 60}ms` }}
               >
                 <div className="mb-4 flex items-center justify-between">
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/15 transition group-hover:bg-primary group-hover:text-primary-foreground group-hover:ring-primary">
@@ -851,6 +1311,7 @@ function WorkflowSection({ content }: { content: WorkflowContent }) {
   const before = useInView<HTMLDivElement>();
   const after = useInView<HTMLDivElement>();
   const timeline = useInView<HTMLDivElement>();
+  const [expanded, setExpanded] = useState<number | null>(null);
 
   return (
     <section
@@ -926,9 +1387,9 @@ function WorkflowSection({ content }: { content: WorkflowContent }) {
           </div>
         </div>
 
-        {/* Connected step timeline */}
+        {/* Connected step timeline — click a step to see it grounded in a real example */}
         <div ref={timeline.ref} className="relative">
-          {/* far-left vertical rail + terminating arrow */}
+          {/* far-left vertical rail + terminating arrow + a "data" dot that travels the wire */}
           <span
             aria-hidden
             className={cn(
@@ -936,10 +1397,17 @@ function WorkflowSection({ content }: { content: WorkflowContent }) {
               timeline.inView && "in-view",
             )}
           />
+          {timeline.inView && (
+            <span
+              aria-hidden
+              className="flow-dot absolute left-[16px] h-2 w-2 rounded-full bg-primary shadow-[0_0_8px_1px_var(--primary)]"
+            />
+          )}
 
           <ol className="relative space-y-3">
             {workflow.steps.map((s, i) => {
               const Icon = STEP_ICONS[i] ?? Sparkles;
+              const isOpen = expanded === i;
               return (
                 <li key={s.label} className="relative flex items-center gap-3">
                   {/* numbered badge sitting on the rail */}
@@ -956,24 +1424,44 @@ function WorkflowSection({ content }: { content: WorkflowContent }) {
                   </div>
                   {/* connector dot */}
                   <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary/50" />
-                  {/* step card */}
-                  <div
+                  {/* step card — clickable, expands to a grounded example */}
+                  <button
+                    type="button"
+                    onClick={() => setExpanded(isOpen ? null : i)}
+                    aria-expanded={isOpen}
                     className={cn(
-                      "reveal grid flex-1 grid-cols-1 overflow-hidden rounded-xl border border-border/70 bg-gradient-to-br from-surface/70 to-surface-2/50 transition duration-300 hover:-translate-y-0.5 hover:border-primary/30 sm:grid-cols-[minmax(180px,240px)_1fr]",
+                      "reveal flex-1 overflow-hidden rounded-xl border border-border/70 bg-gradient-to-br from-surface/70 to-surface-2/50 text-left transition duration-300 hover:-translate-y-0.5 hover:border-primary/30",
                       timeline.inView && "in-view",
+                      isOpen && "border-primary/40",
                     )}
                     style={{ transitionDelay: `${i * 80 + 60}ms` }}
                   >
-                    <div className="flex items-center gap-4 px-5 py-4">
-                      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-border bg-background/60 text-muted-foreground">
-                        <Icon className="h-5 w-5" />
-                      </span>
-                      <span className="text-[15px] font-semibold text-foreground">{s.label}</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-[minmax(180px,240px)_1fr_auto]">
+                      <div className="flex items-center gap-4 px-5 py-4">
+                        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-border bg-background/60 text-muted-foreground">
+                          <Icon className="h-5 w-5" />
+                        </span>
+                        <span className="text-[15px] font-semibold text-foreground">{s.label}</span>
+                      </div>
+                      <div className="flex items-center border-t border-border/60 px-5 py-4 text-sm text-muted-foreground sm:border-l sm:border-t-0">
+                        {s.detail}
+                      </div>
+                      <div className="hidden items-center border-t border-border/60 px-4 sm:flex sm:border-l sm:border-t-0">
+                        <ChevronDown
+                          className={cn(
+                            "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-300",
+                            isOpen && "rotate-180 text-primary",
+                          )}
+                        />
+                      </div>
                     </div>
-                    <div className="flex items-center border-t border-border/60 px-5 py-4 text-sm text-muted-foreground sm:border-l sm:border-t-0">
-                      {s.detail}
-                    </div>
-                  </div>
+                    {isOpen && (
+                      <div className="flex items-start gap-2.5 border-t border-primary/20 bg-primary/5 px-5 py-3 text-xs text-foreground/90">
+                        <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                        <span>{s.example}</span>
+                      </div>
+                    )}
+                  </button>
                 </li>
               );
             })}
@@ -993,6 +1481,8 @@ const STEP_ICONS: LucideIcon[] = [Mail, FileText, Workflow, Wand2, User, CheckCi
 function CopilotLibrary() {
   const [active, setActive] = useState<CopilotGroup | "all">("all");
   const [selected, setSelected] = useState<Copilot | null>(null);
+  const heading = useInView<HTMLDivElement>();
+  const grid = useInView<HTMLDivElement>();
 
   const items = useMemo(
     () => (active === "all" ? COPILOTS : COPILOTS.filter((c) => c.group === active)),
@@ -1002,7 +1492,10 @@ function CopilotLibrary() {
   return (
     <section id="copilots" className="border-b border-border/60 bg-surface-2/40 py-20">
       <div className="mx-auto max-w-7xl px-5">
-        <div className="mb-8 flex flex-col gap-2">
+        <div
+          ref={heading.ref}
+          className={cn("reveal mb-8 flex flex-col gap-2", heading.inView && "in-view")}
+        >
           <span className="font-mono text-xs uppercase tracking-wider text-primary">
             Copilot library
           </span>
@@ -1033,12 +1526,16 @@ function CopilotLibrary() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((c) => (
+        <div ref={grid.ref} className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {items.map((c, i) => (
             <button
               key={c.title}
               onClick={() => setSelected(c)}
-              className="group flex flex-col gap-3 rounded-2xl border border-border bg-surface p-5 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md"
+              className={cn(
+                "reveal group flex flex-col gap-3 rounded-2xl border border-border bg-surface p-5 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md",
+                grid.inView && "in-view",
+              )}
+              style={{ transitionDelay: `${(i % 3) * 60}ms` }}
             >
               <div className="flex items-center justify-between">
                 <span
@@ -1255,6 +1752,8 @@ function TraceIcon({ kind }: { kind: Copilot["trace"][number]["kind"] }) {
 
 function IntegrationCatalog() {
   const [active, setActive] = useState<LandingIntegrationCategory | "all">("all");
+  const heading = useInView<HTMLDivElement>();
+  const grid = useInView<HTMLDivElement>();
 
   const items = useMemo(
     () =>
@@ -1267,7 +1766,10 @@ function IntegrationCatalog() {
   return (
     <section id="integrations" className="border-b border-border/60 py-20">
       <div className="mx-auto max-w-7xl px-5">
-        <div className="mb-8 flex flex-col gap-2 text-center">
+        <div
+          ref={heading.ref}
+          className={cn("reveal mb-8 flex flex-col gap-2 text-center", heading.inView && "in-view")}
+        >
           <span className="font-mono text-xs uppercase tracking-wider text-primary">
             Integrations
           </span>
@@ -1286,11 +1788,18 @@ function IntegrationCatalog() {
           ))}
         </div>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-          {items.map((i) => (
+        <div
+          ref={grid.ref}
+          className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6"
+        >
+          {items.map((i, idx) => (
             <div
               key={i.slug}
-              className="flex flex-col items-center gap-3 rounded-xl border border-border bg-surface p-5 text-center transition hover:border-primary/50 hover:shadow-sm"
+              className={cn(
+                "reveal flex flex-col items-center gap-3 rounded-xl border border-border bg-surface p-5 text-center transition hover:border-primary/50 hover:shadow-sm",
+                grid.inView && "in-view",
+              )}
+              style={{ transitionDelay: `${(idx % 6) * 50}ms` }}
             >
               <IntegrationLogo
                 name={i.name}
@@ -1344,10 +1853,12 @@ function PlatformGrid() {
     { k: "Audit Trail", v: "Every action logged and traceable back to source." },
     { k: "Security", v: "SSO, role-based access, encryption, and data residency controls." },
   ];
+  const heading = useInView<HTMLDivElement>();
+  const list = useInView<HTMLDivElement>();
   return (
     <section className="border-b border-border/60 py-20">
       <div className="mx-auto max-w-7xl px-5">
-        <div className="mb-10">
+        <div ref={heading.ref} className={cn("reveal mb-10", heading.inView && "in-view")}>
           <span className="font-mono text-xs uppercase tracking-wider text-primary">
             Under the hood
           </span>
@@ -1355,7 +1866,10 @@ function PlatformGrid() {
             Enterprise-grade, built for the controls construction requires.
           </h2>
         </div>
-        <div className="overflow-hidden rounded-2xl border border-border">
+        <div
+          ref={list.ref}
+          className={cn("reveal overflow-hidden rounded-2xl border border-border", list.inView && "in-view")}
+        >
           {rows.map((r, i) => (
             <div
               key={r.k}
@@ -1378,9 +1892,13 @@ function PlatformGrid() {
 // ---------------- CTA ----------------
 
 function CTASection({ onBookDemo }: { onBookDemo: () => void }) {
+  const content = useInView<HTMLDivElement>();
   return (
     <section id="cta" className="py-20">
-      <div className="mx-auto max-w-4xl px-5 text-center">
+      <div
+        ref={content.ref}
+        className={cn("reveal mx-auto max-w-4xl px-5 text-center", content.inView && "in-view")}
+      >
         <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
           Give your project teams back their afternoons.
         </h2>

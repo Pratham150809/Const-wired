@@ -36,29 +36,30 @@
 
 :root {
   --radius: 0.75rem;
-  /* Nango-style light theme: clean white surfaces, near-black text, indigo accent. */
-  --background: oklch(1 0 0);
+  /* Warm "blueprint paper" light theme for the marketing site: warm ivory/sand
+     surfaces instead of stark white, same royal-blue accent and dark-navy text. */
+  --background: oklch(0.98 0.008 80);
   --foreground: oklch(0.2 0.01 275);
-  --surface: oklch(1 0 0);
-  --surface-2: oklch(0.975 0.003 275);
-  --card: oklch(1 0 0);
+  --surface: oklch(0.99 0.005 80);
+  --surface-2: oklch(0.955 0.012 75);
+  --card: oklch(0.99 0.005 80);
   --card-foreground: oklch(0.2 0.01 275);
-  --popover: oklch(1 0 0);
+  --popover: oklch(0.99 0.005 80);
   --popover-foreground: oklch(0.2 0.01 275);
   --primary: oklch(0.52 0.2 264); /* SBI royal blue accent */
   --primary-2: oklch(0.44 0.19 276); /* deeper blue for gradient fills */
   --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.965 0.004 275);
+  --secondary: oklch(0.96 0.008 78);
   --secondary-foreground: oklch(0.3 0.012 275);
-  --muted: oklch(0.965 0.004 275);
-  --muted-foreground: oklch(0.52 0.012 275);
+  --muted: oklch(0.96 0.008 78);
+  --muted-foreground: oklch(0.52 0.01 80);
   --accent: oklch(0.95 0.03 264);
   --accent-foreground: oklch(0.42 0.12 264);
   --destructive: oklch(0.58 0.2 27);
-  --border: oklch(0.92 0.004 275);
-  --input: oklch(0.92 0.004 275);
+  --border: oklch(0.9 0.012 78);
+  --input: oklch(0.9 0.012 78);
   --ring: oklch(0.52 0.2 264);
-  --grid-line: oklch(0.2 0.01 275 / 0.045);
+  --grid-line: oklch(0.25 0.02 80 / 0.05);
 }
 
 /* Dark variant for the marketing landing page. Scoped to `.landing-root` so it
@@ -264,6 +265,28 @@
   animation: bob 1.6s ease-in-out infinite;
 }
 
+/* A small dot that travels down the workflow rail, like data moving along a
+   wire between steps. Matches the rail's own top-5/bottom-8 insets. */
+@keyframes flow-dot {
+  0% {
+    top: 20px;
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  92% {
+    opacity: 1;
+  }
+  100% {
+    top: calc(100% - 32px);
+    opacity: 0;
+  }
+}
+.flow-dot {
+  animation: flow-dot 3.2s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .reveal {
     opacity: 1;
@@ -275,7 +298,11 @@
     transition: none;
   }
   .arrow-float,
-  .arrow-bob {
+  .arrow-bob,
+  .flow-dot {
     animation: none;
+  }
+  .flow-dot {
+    display: none;
   }
 }
