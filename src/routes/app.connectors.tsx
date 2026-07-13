@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Check, ChevronRight, Layers, Plug, Plus, Search, ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { IntegrationLogo } from "../components/common/IntegrationLogo";
 import { CATEGORIES, INTEGRATIONS } from "../lib/catalog";
@@ -12,6 +13,18 @@ export const Route = createFileRoute("/app/connectors")({ component: Connectors 
 function Connectors() {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState<IntegrationCategory | "all">("all");
+  const [requestOpen, setRequestOpen] = useState(false);
+  const [requestName, setRequestName] = useState("");
+
+  const submitRequest = () => {
+    const name = requestName.trim();
+    if (!name) return;
+    toast.success(`Request submitted for "${name}"`, {
+      description: "Our integrations team will follow up on availability.",
+    });
+    setRequestName("");
+    setRequestOpen(false);
+  };
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -43,11 +56,54 @@ function Connectors() {
             act across them.
           </p>
         </div>
-        <button className="brand-gradient inline-flex h-9 items-center gap-1.5 rounded-lg px-3.5 text-xs font-semibold text-primary-foreground shadow-sm shadow-primary/25 transition hover:opacity-90">
+        <button
+          onClick={() => setRequestOpen(true)}
+          className="brand-gradient inline-flex h-9 items-center gap-1.5 rounded-lg px-3.5 text-xs font-semibold text-primary-foreground shadow-sm shadow-primary/25 transition hover:opacity-90"
+        >
           <Plug className="h-3.5 w-3.5" />
           Request a connector
         </button>
       </div>
+
+      {requestOpen && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-background/80 p-4 backdrop-blur-sm"
+          onClick={() => setRequestOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-sm font-semibold text-foreground">Request a connector</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Tell us which system you'd like your copilots to work with.
+            </p>
+            <input
+              autoFocus
+              value={requestName}
+              onChange={(e) => setRequestName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submitRequest()}
+              placeholder="e.g. Trimble, Viewpoint Vista…"
+              className="mt-3 h-9 w-full rounded-md border border-border bg-surface px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setRequestOpen(false)}
+                className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:text-foreground"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitRequest}
+                disabled={!requestName.trim()}
+                className="brand-gradient rounded-lg px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm shadow-primary/25 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Non-replacement callout — mirrors the Build Flow "works with your stack" panel */}
       <section className="flex items-start gap-4 rounded-2xl border border-primary/25 bg-primary/5 p-5">

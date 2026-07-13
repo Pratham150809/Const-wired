@@ -45,41 +45,41 @@ const SECONDARY_KPIS: {
   hint: string;
   tone?: Tone;
 }[] = [
-  { label: "Cash Position", value: "$482,190", icon: Landmark, hint: "across 3 accounts" },
+  { label: "Contract Value in Progress", value: "$482,190", icon: Landmark, hint: "across 3 active projects" },
   { label: "Avg. Approval Time", value: "2m 41s", icon: Clock, hint: "down from 45m manual", tone: "good" },
   { label: "AI Conversations", value: "347", icon: Activity, hint: "this week" },
 ];
 
 const CLOSE_TASKS: { label: string; done: number; total: number }[] = [
-  { label: "Bank reconciliations", done: 3, total: 3 },
-  { label: "Accruals & prepaids", done: 5, total: 6 },
-  { label: "AP / AR cutoff", done: 8, total: 10 },
-  { label: "Balance-sheet review", done: 4, total: 9 },
+  { label: "Draw reconciliation", done: 3, total: 3 },
+  { label: "Cost accruals & retainage", done: 5, total: 6 },
+  { label: "Job cost cutoff", done: 8, total: 10 },
+  { label: "WIP schedule review", done: 4, total: 9 },
 ];
 
 const RECENT_DOCS: { name: string; type: string; status: string; tone: Tone; date: string; icon: LucideIcon }[] = [
-  { name: "Invoice #AC-2214 — Acme Supplies", type: "Invoice", status: "Needs Approval", tone: "warn", date: "Jul 08", icon: ReceiptText },
-  { name: "Bank Statement — Mercury (Jun)", type: "Statement", status: "Reconciling", tone: "neutral", date: "Jul 01", icon: Landmark },
-  { name: "Purchase Order PO-4482 — Nucor", type: "PO", status: "Approved", tone: "good", date: "Jun 22", icon: ClipboardCheck },
-  { name: "Invoice #GX-2231 — Globex Corp", type: "Invoice", status: "Duplicate Flagged", tone: "bad", date: "Jul 09", icon: ReceiptText },
-  { name: "Expense Report — Q3 Sales Offsite", type: "Expense", status: "Needs Approval", tone: "warn", date: "Jul 06", icon: FileText },
+  { name: "RFI #RFI-2214 — Apex Building Materials", type: "RFI", status: "Needs Approval", tone: "warn", date: "Jul 08", icon: ReceiptText },
+  { name: "Draw Statement — Mercury Bank (Riverside Tower, Jun)", type: "Statement", status: "Reconciling", tone: "neutral", date: "Jul 01", icon: Landmark },
+  { name: "Submittal #SUB-4482 — Ironclad Steel Supply", type: "Submittal", status: "Approved", tone: "good", date: "Jun 22", icon: ClipboardCheck },
+  { name: "Change Order #CO-2231 — Coastal Glazing LLC", type: "Change Order", status: "Duplicate Flagged", tone: "bad", date: "Jul 09", icon: ReceiptText },
+  { name: "Daily Log — Riverside Tower Site Safety Walk", type: "Daily Log", status: "Needs Approval", tone: "warn", date: "Jul 06", icon: FileText },
 ];
 
 const ACTIVITY: { action: string; actor: string; detail: string; time: string }[] = [
-  { action: "Invoice posted", actor: "AP Copilot", detail: "AC-2198 → QuickBooks", time: "10:42" },
-  { action: "Approval granted", actor: "A. Reyes", detail: "Reconciliation · June", time: "10:15" },
-  { action: "Duplicate flagged", actor: "AP Copilot", detail: "Invoice GX-2231", time: "09:58" },
+  { action: "RFI response posted", actor: "RFI Copilot", detail: "RFI-2214 → Procore", time: "10:42" },
+  { action: "Approval granted", actor: "A. Reyes", detail: "Draw Reconciliation · June", time: "10:15" },
+  { action: "Duplicate flagged", actor: "RFI Copilot", detail: "Change Order CO-2231", time: "09:58" },
   { action: "Bank feed synced", actor: "System", detail: "Mercury ••4102", time: "09:30" },
-  { action: "Expense audited", actor: "Audit Copilot", detail: "Q3 Sales Offsite", time: "09:12" },
-  { action: "Vendor onboarded", actor: "R. Danforth", detail: "Nucor Steel · W-9 verified", time: "08:47" },
+  { action: "Daily log reviewed", actor: "Safety Copilot", detail: "Riverside Tower Site Safety Walk", time: "09:12" },
+  { action: "Subcontractor onboarded", actor: "R. Danforth", detail: "Ironclad Steel Supply · COI verified", time: "08:47" },
 ];
 
 const SERVICES: { name: string; status: string; tone: Tone }[] = [
-  { name: "QuickBooks", status: "operational", tone: "good" },
+  { name: "Procore", status: "operational", tone: "good" },
   { name: "Mercury Bank", status: "operational", tone: "good" },
   { name: "Document AI", status: "operational", tone: "good" },
   { name: "Orchestrator", status: "operational", tone: "good" },
-  { name: "NetSuite", status: "degraded", tone: "warn" },
+  { name: "Autodesk Construction Cloud", status: "degraded", tone: "warn" },
   { name: "Audit Log", status: "operational", tone: "good" },
 ];
 
@@ -101,7 +101,7 @@ function Dashboard() {
           Welcome back, <span className="capitalize">{name}</span>
         </h1>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          Your organization's AI accounting operations at a glance.
+          Your organization's AI construction operations at a glance.
         </p>
       </div>
 
@@ -119,7 +119,7 @@ function Dashboard() {
 
       {/* Month-end close + activity */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <Panel icon={CheckCircle2} title="Month-end close" hint="July 2026">
+        <Panel icon={CheckCircle2} title="Job Cost Closeout" hint="July 2026">
           <div className="space-y-4">
             {CLOSE_TASKS.map((t) => {
               const pct = Math.round((t.done / t.total) * 100);

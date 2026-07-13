@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { ApiError, api } from "../api";
 import { IntegrationLogo } from "../components/common/IntegrationLogo";
@@ -45,22 +46,22 @@ type WorkflowContent = {
 };
 
 const HERO = {
-  tagline: "The AI operating system for accounting.",
-  sub: "Automate AP/AR, bank reconciliation, expense management, and the month-end close. AI does the busywork and drafts every entry — your controller reviews and approves before anything posts.",
+  tagline: "The AI operating system for construction.",
+  sub: "Automate RFIs, submittals, change orders, and job cost closeout. AI does the busywork and drafts every response — your PM reviews and approves before anything posts.",
 };
 
-// The single, accounting-specific workflow shown in the before/after section.
+// The single, construction-specific workflow shown in the before/after section.
 const CLOSE_WORKFLOW: WorkflowContent = {
-  title: "Invoice-to-approval, done in minutes.",
-  before: "45+ minutes per invoice, keying data across email, drive, and your ERP.",
+  title: "RFI-to-response, done in minutes.",
+  before: "45+ minutes per RFI, digging through drawings, specs, and email threads.",
   after: "5 minutes: AI extracts, matches, and validates — you review and approve.",
   steps: [
-    { label: "Invoice arrives", detail: "A vendor emails an invoice into your AP inbox." },
-    { label: "Extract", detail: "Document intelligence reads line items, totals, and tax." },
-    { label: "Match", detail: "3-way match against PO and receipt; duplicate check." },
-    { label: "Validate", detail: "GL coding, approval routing, and policy checks applied." },
-    { label: "Approve", detail: "Your controller reviews the draft and approves in one click." },
-    { label: "Post", detail: "Journal entry written back to QuickBooks, Xero, or NetSuite." },
+    { label: "RFI arrives", detail: "A subcontractor submits an RFI on Riverside Tower." },
+    { label: "Extract", detail: "OCR reads the attachments — drawings, photos, and spec callouts." },
+    { label: "Match", detail: "Looks up the relevant drawings and specs; checks for a duplicate RFI." },
+    { label: "Validate", detail: "Cost-code assignment, routing, and policy checks applied." },
+    { label: "Approve", detail: "Your PM reviews the draft response and approves in one click." },
+    { label: "Post", detail: "Response synced back to Procore, Autodesk, or Buildertrend." },
   ],
 };
 
@@ -85,322 +86,322 @@ type Copilot = {
 
 const COPILOT_GROUPS: { slug: CopilotGroup | "all"; label: string }[] = [
   { slug: "all", label: "All" },
-  { slug: "apar", label: "AP / AR" },
-  { slug: "close", label: "Close & Reporting" },
-  { slug: "compliance", label: "Compliance & Audit" },
+  { slug: "apar", label: "RFIs / Submittals" },
+  { slug: "close", label: "Billing & Job Costing" },
+  { slug: "compliance", label: "Compliance & Safety" },
 ];
 
 const GROUP_META: Record<CopilotGroup, { label: string; accent: string }> = {
-  // Restrained, finance-appropriate accents so each family reads distinctly
+  // Restrained, construction-appropriate accents so each family reads distinctly
   // without leaving the neutral theme.
-  apar: { label: "AP / AR", accent: "#4f9dde" },
-  close: { label: "Close & Reporting", accent: "#3f9a7f" },
-  compliance: { label: "Compliance & Audit", accent: "#8a7fd0" },
+  apar: { label: "RFIs / Submittals", accent: "#4f9dde" },
+  close: { label: "Billing & Job Costing", accent: "#3f9a7f" },
+  compliance: { label: "Compliance & Safety", accent: "#8a7fd0" },
 };
 
 const COPILOTS: Copilot[] = [
   {
     group: "apar",
-    label: "AP / AR",
-    title: "Invoice Processing & AP Approval Copilot",
-    goal: "Validate supplier invoices, run a 3-way match, catch duplicates, and route them for approval.",
-    persona: "AP Accountant",
-    approver: "Controller",
-    trigger: "A supplier emails an invoice to your AP inbox.",
+    label: "RFIs / Submittals",
+    title: "RFI Response & Routing Copilot",
+    goal: "Look up the relevant drawings and specs, catch duplicate RFIs, and route them for approval.",
+    persona: "Project Engineer",
+    approver: "Project Manager (PM)",
+    trigger: "A subcontractor submits an RFI on Riverside Tower.",
     actions: [
-      "Extracts line items, totals, and tax automatically",
-      "Matches the invoice to its PO and goods receipt",
-      "Flags duplicates and out-of-policy amounts",
-      "Applies GL coding and routes for approval",
-      "Writes a plain-language validation summary",
+      "Extracts the question, drawings, and attachments automatically",
+      "Looks up the relevant drawing sheets and spec sections",
+      "Flags duplicate RFIs and out-of-scope requests",
+      "Applies cost-code assignment and routes for approval",
+      "Writes a plain-language response summary",
     ],
     value: [
-      "No manual data entry",
-      "Duplicate and overbilling caught before payment",
-      "Faster approval cycles",
+      "No manual drawing lookups",
+      "Duplicate and out-of-scope RFIs caught early",
+      "Faster response cycles",
       "A clean, defensible audit trail",
     ],
     runtime: "2m 41s",
     trace: [
-      { kind: "run", text: "connecting to AP inbox…" },
-      { kind: "ok", text: "reading invoice_0417.pdf" },
-      { kind: "ok", text: "matched vendor: Acme Supplies" },
-      { kind: "ok", text: "3-way match: PO-2214 ✓ receipt ✓" },
-      { kind: "ok", text: "no duplicate found" },
-      { kind: "ok", text: "GL coded · validation summary ready" },
-      { kind: "wait", text: "waiting on approval (Controller)" },
+      { kind: "run", text: "connecting to Procore RFI log…" },
+      { kind: "ok", text: "reading rfi_0417.pdf" },
+      { kind: "ok", text: "matched subcontractor: Coastal Glazing LLC" },
+      { kind: "ok", text: "drawing lookup: A-402 ✓ spec 08 44 00 ✓" },
+      { kind: "ok", text: "no duplicate RFI found" },
+      { kind: "ok", text: "cost-code assigned · response drafted" },
+      { kind: "wait", text: "waiting on approval (Project Manager)" },
       { kind: "ok", text: "approved by A. Reyes" },
-      { kind: "ok", text: "posted to QuickBooks · confirmation sent" },
+      { kind: "ok", text: "posted to Procore · confirmation sent" },
       { kind: "done", text: "done in 2m 41s" },
     ],
   },
   {
     group: "apar",
-    label: "AP / AR",
-    title: "AR Collections & Dunning Copilot",
-    goal: "Prioritize overdue receivables and draft personalized collection emails for your review.",
-    persona: "AR Specialist",
-    approver: "Controller",
-    trigger: "An invoice passes its due date, or on your weekly AR run.",
+    label: "RFIs / Submittals",
+    title: "Submittal Tracking & Review Copilot",
+    goal: "Track the submittal log, chase overdue reviews, and draft reminders for your review.",
+    persona: "Project Engineer",
+    approver: "Project Manager (PM)",
+    trigger: "A submittal passes its due date, or on your weekly log review.",
     actions: [
-      "Pulls the aging report and ranks accounts by risk",
-      "Reconciles payments already received",
-      "Drafts a tailored reminder per customer and stage",
-      "Suggests next steps for high-risk accounts",
-      "Logs every touch against the customer record",
+      "Pulls the submittal log and ranks items by risk",
+      "Checks status against the approved schedule",
+      "Drafts a tailored reminder per reviewer and stage",
+      "Suggests next steps for at-risk submittals",
+      "Logs every touch against the submittal record",
     ],
     value: [
-      "Lower DSO",
+      "Lower submittal cycle time",
       "Consistent, on-time follow-up",
-      "Less time chasing payments",
-      "Earlier warning on at-risk accounts",
+      "Less time chasing reviewers",
+      "Earlier warning on at-risk submittals",
     ],
     runtime: "1m 48s",
     trace: [
-      { kind: "run", text: "connecting to ERP…" },
-      { kind: "ok", text: "aging report pulled · 37 open invoices" },
-      { kind: "ok", text: "payments reconciled" },
+      { kind: "run", text: "connecting to Autodesk Construction Cloud…" },
+      { kind: "ok", text: "submittal log pulled · 37 open items" },
+      { kind: "ok", text: "schedule status checked" },
       { kind: "ok", text: "12 reminders drafted by stage" },
-      { kind: "ok", text: "2 accounts flagged high-risk" },
-      { kind: "wait", text: "waiting on approval (Controller)" },
+      { kind: "ok", text: "2 submittals flagged high-risk" },
+      { kind: "wait", text: "waiting on approval (Project Manager)" },
       { kind: "ok", text: "approved · reminders queued to send" },
       { kind: "done", text: "done in 1m 48s" },
     ],
   },
   {
     group: "apar",
-    label: "AP / AR",
-    title: "Vendor Onboarding & W-9 Copilot",
-    goal: "Collect and verify new-vendor details, tax forms, and bank info before the first payment.",
-    persona: "AP Accountant",
-    approver: "Finance Manager",
-    trigger: "A team member requests a new vendor be set up.",
+    label: "RFIs / Submittals",
+    title: "Subcontractor Onboarding & Lien Waiver Copilot",
+    goal: "Collect and verify new-subcontractor details, insurance, and lien waivers before the first pay app.",
+    persona: "Project Engineer",
+    approver: "Project Executive",
+    trigger: "A team member requests a new subcontractor be set up.",
     actions: [
-      "Requests and reads the W-9 and banking details",
-      "Validates TIN and checks for duplicate vendors",
-      "Screens against sanctions and denied-party lists",
-      "Drafts the vendor master record for review",
+      "Requests and reads the COI and insurance certificates",
+      "Validates TIN and checks for duplicate subcontractors",
+      "Collects and verifies conditional and unconditional lien waivers",
+      "Drafts the subcontractor master record for review",
     ],
     value: [
-      "Fewer payment errors and fraud risk",
-      "No duplicate vendor records",
+      "Fewer payment errors and lien risk",
+      "No duplicate subcontractor records",
       "Faster, compliant onboarding",
       "Complete documentation on file",
     ],
     runtime: "2m 12s",
     trace: [
-      { kind: "run", text: "connecting to email + ERP…" },
-      { kind: "ok", text: "W-9 received and parsed" },
-      { kind: "ok", text: "TIN validated · no duplicate vendor" },
-      { kind: "ok", text: "sanctions screen clean" },
-      { kind: "ok", text: "vendor record drafted" },
-      { kind: "wait", text: "waiting on approval (Finance Manager)" },
+      { kind: "run", text: "connecting to email + Procore…" },
+      { kind: "ok", text: "COI received and parsed" },
+      { kind: "ok", text: "TIN validated · no duplicate subcontractor" },
+      { kind: "ok", text: "insurance limits meet contract requirements" },
+      { kind: "ok", text: "lien waiver collected · subcontractor record drafted" },
+      { kind: "wait", text: "waiting on approval (Project Executive)" },
       { kind: "done", text: "done in 2m 12s" },
     ],
   },
   {
     group: "close",
-    label: "Close & Reporting",
-    title: "Bank Reconciliation Copilot",
-    goal: "Match bank transactions to your ledger and surface only the exceptions that need you.",
-    persona: "Staff Accountant",
-    approver: "Controller",
-    trigger: "A bank feed syncs, or you start a period-end reconciliation.",
+    label: "Billing & Job Costing",
+    title: "Draw & Pay Application Reconciliation Copilot",
+    goal: "Match draw requests and pay applications to job cost detail and surface only the exceptions that need you.",
+    persona: "Project Accountant",
+    approver: "Project Manager (PM)",
+    trigger: "A draw request is submitted, or you start a pay application reconciliation.",
     actions: [
-      "Pulls bank transactions and ledger entries",
-      "Auto-matches by amount, date, and reference",
+      "Pulls the Mercury draw account activity and job cost detail",
+      "Auto-matches pay applications by cost code, amount, and period",
       "Groups and explains the unmatched exceptions",
-      "Proposes journal entries for fees and interest",
+      "Proposes retainage journal entries",
       "Writes a reconciliation summary with the balance",
     ],
     value: [
       "Reconciliations in minutes, not hours",
       "Only true exceptions reach your desk",
-      "Fewer month-end surprises",
+      "Fewer surprises at draw time",
       "A documented, reviewable match trail",
     ],
     runtime: "2m 20s",
     trace: [
-      { kind: "run", text: "connecting to bank feed…" },
-      { kind: "ok", text: "412 transactions pulled" },
+      { kind: "run", text: "connecting to Mercury draw account…" },
+      { kind: "ok", text: "412 line items pulled" },
       { kind: "ok", text: "398 auto-matched (96.6%)" },
       { kind: "ok", text: "14 exceptions grouped" },
-      { kind: "ok", text: "2 fee entries proposed" },
-      { kind: "wait", text: "waiting on approval (Controller)" },
-      { kind: "ok", text: "approved · reconciliation closed" },
+      { kind: "ok", text: "2 retainage entries proposed" },
+      { kind: "wait", text: "waiting on approval (Project Manager)" },
+      { kind: "ok", text: "approved · draw reconciliation closed" },
       { kind: "done", text: "done in 2m 20s" },
     ],
   },
   {
     group: "close",
-    label: "Close & Reporting",
-    title: "Month-End Close Copilot",
-    goal: "Run the close checklist, prepare accruals and reconciliations, and track what's outstanding.",
-    persona: "Financial Controller",
-    approver: "CFO",
-    trigger: "You kick off the close for the period.",
+    label: "Billing & Job Costing",
+    title: "Job Cost Close Copilot",
+    goal: "Run the cost-code reconciliation checklist, prepare the WIP schedule, and track what's outstanding.",
+    persona: "Project Accountant",
+    approver: "Project Executive",
+    trigger: "You kick off job cost close for the period.",
     actions: [
-      "Works the close checklist task by task",
-      "Prepares recurring accruals and prepaid schedules",
-      "Reconciles key balance-sheet accounts",
-      "Flags variances against prior period and budget",
+      "Works the cost-code reconciliation checklist task by task",
+      "Prepares cost accruals and retainage schedules",
+      "Reconciles key cost codes against committed cost",
+      "Flags variances against budget and prior period",
       "Reports what's blocking the close in real time",
     ],
     value: [
-      "A faster, more predictable close",
+      "A faster, more predictable job cost close",
       "Nothing falls through the cracks",
-      "Fewer late adjusting entries",
-      "Clear status for the whole team",
+      "Fewer late cost adjustments",
+      "Clear status for the whole project team",
     ],
     runtime: "4m 02s",
     trace: [
-      { kind: "run", text: "loading close checklist…" },
+      { kind: "run", text: "loading cost-code checklist…" },
       { kind: "ok", text: "18 of 24 tasks automated" },
-      { kind: "ok", text: "accruals + prepaids prepared" },
-      { kind: "ok", text: "balance-sheet accounts reconciled" },
+      { kind: "ok", text: "accruals + retainage prepared" },
+      { kind: "ok", text: "cost codes reconciled to committed cost" },
       { kind: "ok", text: "3 variances flagged" },
-      { kind: "wait", text: "waiting on approval (CFO)" },
+      { kind: "wait", text: "waiting on approval (Project Executive)" },
       { kind: "done", text: "done in 4m 02s" },
     ],
   },
   {
     group: "close",
-    label: "Close & Reporting",
-    title: "Financial Reporting Copilot",
-    goal: "Turn ledger data into an executive-ready report with variance commentary.",
-    persona: "Financial Controller",
-    approver: "CFO",
+    label: "Billing & Job Costing",
+    title: "Job Cost & WIP Reporting Copilot",
+    goal: "Turn job cost data into an executive-ready cost report with variance commentary.",
+    persona: "Project Accountant",
+    approver: "Project Executive",
     trigger: "You choose a reporting period from the dashboard.",
     actions: [
-      "Pulls the latest actuals and budget data",
-      "Builds P&L, balance sheet, and cash flow",
+      "Pulls the latest actuals and budget data by cost code",
+      "Builds the WIP schedule, cost report, and cash flow",
       "Compares actuals against budget and prior period",
-      "Flags unusual trends automatically",
+      "Flags unusual cost trends automatically",
       "Writes an executive summary in plain language",
     ],
     value: [
-      "Faster board and management reporting",
+      "Faster owner and leadership reporting",
       "Consistent, ready-to-send insights",
       "Less time in spreadsheets",
-      "Earlier visibility into variances",
+      "Earlier visibility into cost variances",
     ],
     runtime: "3m 05s",
     trace: [
-      { kind: "run", text: "connecting to ERP…" },
-      { kind: "ok", text: "actuals + budget pulled" },
-      { kind: "ok", text: "P&L, BS, cash flow built" },
+      { kind: "run", text: "connecting to Procore…" },
+      { kind: "ok", text: "actuals + budget pulled by cost code" },
+      { kind: "ok", text: "WIP schedule, cost report, cash flow built" },
       { kind: "ok", text: "3 variances flagged with commentary" },
       { kind: "ok", text: "executive summary drafted" },
-      { kind: "wait", text: "waiting on approval (CFO)" },
+      { kind: "wait", text: "waiting on approval (Project Executive)" },
       { kind: "ok", text: "approved by J. Lin" },
       { kind: "done", text: "done in 3m 05s" },
     ],
   },
   {
     group: "compliance",
-    label: "Compliance & Audit",
-    title: "Expense Audit Copilot",
-    goal: "Check employee expense claims against policy before you reimburse them.",
-    persona: "Expense Auditor",
-    approver: "Finance Manager",
-    trigger: "An employee submits a receipt or expense report.",
+    label: "Compliance & Safety",
+    title: "Daily Log & Safety Compliance Copilot",
+    goal: "Read daily field logs and check them against your safety policy before issues pile up.",
+    persona: "Superintendent",
+    approver: "Project Executive",
+    trigger: "A foreman submits a daily log or safety observation.",
     actions: [
-      "Reads receipts and expense details automatically",
-      "Verifies merchant, amount, and category",
-      "Flags duplicate and split claims",
-      "Checks each line against company policy",
-      "Writes a short audit summary",
+      "Reads daily logs and safety observations automatically",
+      "Verifies crew count, weather, and work performed",
+      "Flags missing safety checks and incomplete entries",
+      "Checks each entry against site safety policy",
+      "Writes a short compliance summary",
     ],
     value: [
-      "Lower reimbursement fraud risk",
+      "Lower safety incident risk",
       "Policy applied the same way every time",
-      "Faster reimbursements for employees",
+      "Faster visibility into site conditions",
       "Cleaner records for audit",
     ],
     runtime: "1m 22s",
     trace: [
-      { kind: "run", text: "connecting to expense tool…" },
-      { kind: "ok", text: "reading receipt_travel.jpg" },
-      { kind: "ok", text: "merchant + amount extracted" },
-      { kind: "ok", text: "no duplicate · policy check passed" },
-      { kind: "ok", text: "audit summary ready" },
-      { kind: "wait", text: "waiting on approval (Finance Manager)" },
-      { kind: "ok", text: "approved · reimbursement queued" },
+      { kind: "run", text: "connecting to Fieldwire…" },
+      { kind: "ok", text: "reading daily_log_0713.jpg" },
+      { kind: "ok", text: "crew count + weather extracted" },
+      { kind: "ok", text: "no gaps · safety policy check passed" },
+      { kind: "ok", text: "compliance summary ready" },
+      { kind: "wait", text: "waiting on approval (Project Executive)" },
+      { kind: "ok", text: "approved · log published" },
       { kind: "done", text: "done in 1m 22s" },
     ],
   },
   {
     group: "compliance",
-    label: "Compliance & Audit",
-    title: "Audit Preparation Copilot",
-    goal: "Assemble the PBC list, pull support, and tie balances to source before the auditors arrive.",
-    persona: "Assistant Controller",
-    approver: "Controller",
-    trigger: "You start prep for an external or internal audit.",
+    label: "Compliance & Safety",
+    title: "Audit & Closeout Preparation Copilot",
+    goal: "Assemble the punch list, pull closeout documents, and tie cost detail to source before handover.",
+    persona: "Project Engineer",
+    approver: "Project Manager (PM)",
+    trigger: "You start closeout prep or an internal cost audit.",
     actions: [
-      "Builds the PBC request list from the trial balance",
-      "Gathers invoices, statements, and contracts as support",
-      "Ties account balances back to source documents",
+      "Builds the closeout document checklist from the punch list",
+      "Gathers warranties, O&M manuals, and as-builts as support",
+      "Ties job cost balances back to source documents",
       "Flags gaps and missing documentation",
       "Packages everything into an auditor-ready workpaper set",
     ],
     value: [
-      "Weeks of prep compressed into days",
+      "Weeks of closeout compressed into days",
       "No last-minute document scrambles",
-      "Every balance traceable to support",
-      "A smoother, cheaper audit",
+      "Every cost traceable to support",
+      "A smoother handover to the Owner",
     ],
     runtime: "5m 30s",
     trace: [
-      { kind: "run", text: "loading trial balance…" },
-      { kind: "ok", text: "PBC list generated · 46 items" },
-      { kind: "ok", text: "support gathered for 41 items" },
-      { kind: "ok", text: "balances tied to source" },
+      { kind: "run", text: "loading punch list…" },
+      { kind: "ok", text: "closeout checklist generated · 46 items" },
+      { kind: "ok", text: "warranty binders gathered for 41 items" },
+      { kind: "ok", text: "cost balances tied to source" },
       { kind: "ok", text: "5 gaps flagged for follow-up" },
-      { kind: "wait", text: "waiting on approval (Controller)" },
+      { kind: "wait", text: "waiting on approval (Project Manager)" },
       { kind: "done", text: "done in 5m 30s" },
     ],
   },
   {
     group: "compliance",
-    label: "Compliance & Audit",
-    title: "Sales Tax & Compliance Copilot",
-    goal: "Check transactions for correct tax treatment and prepare filings for your review.",
-    persona: "Tax Accountant",
-    approver: "Controller",
-    trigger: "On a filing deadline, or when new transactions sync.",
+    label: "Compliance & Safety",
+    title: "Permit & Inspection Compliance Copilot",
+    goal: "Track permit status and inspection schedules, and prepare filings for your review.",
+    persona: "Project Engineer",
+    approver: "Project Manager (PM)",
+    trigger: "On an inspection deadline, or when a new permit is issued.",
     actions: [
-      "Reviews transactions for nexus and taxability",
-      "Recalculates tax by jurisdiction",
-      "Flags mis-charged or exempt transactions",
-      "Prepares the return with supporting detail",
+      "Reviews permits for jurisdiction and expiration",
+      "Schedules required inspections against the project timeline",
+      "Flags missed or upcoming inspection windows",
+      "Prepares the filing with supporting detail",
       "Summarizes what changed since last period",
     ],
     value: [
-      "Lower risk of penalties and interest",
+      "Lower risk of stop-work orders",
       "Consistent treatment across jurisdictions",
-      "Filings prepared, not just calculated",
+      "Filings prepared, not just tracked",
       "A documented compliance trail",
     ],
     runtime: "3m 14s",
     trace: [
-      { kind: "run", text: "connecting to ERP…" },
-      { kind: "ok", text: "transactions reviewed for nexus" },
-      { kind: "ok", text: "tax recalculated by jurisdiction" },
-      { kind: "ok", text: "4 mis-charged transactions flagged" },
-      { kind: "ok", text: "return prepared with detail" },
-      { kind: "wait", text: "waiting on approval (Controller)" },
+      { kind: "run", text: "connecting to Procore…" },
+      { kind: "ok", text: "permits reviewed for jurisdiction" },
+      { kind: "ok", text: "inspections scheduled against timeline" },
+      { kind: "ok", text: "4 upcoming inspection windows flagged" },
+      { kind: "ok", text: "filing prepared with detail" },
+      { kind: "wait", text: "waiting on approval (Project Manager)" },
       { kind: "done", text: "done in 3m 14s" },
     ],
   },
 ];
 
-// ---------------- Integrations (accounting-focused) ----------------
+// ---------------- Integrations (construction-focused) ----------------
 
 type LandingIntegrationCategory =
-  | "ERP & Accounting"
+  | "PM & Field Systems"
   | "Payments & Banking"
-  | "Expense & Cards"
+  | "Design & Docs"
   | "Docs & Comms";
 
 type LandingIntegration = {
@@ -412,28 +413,28 @@ type LandingIntegration = {
 };
 
 const INTEGRATION_CATEGORIES: LandingIntegrationCategory[] = [
-  "ERP & Accounting",
+  "PM & Field Systems",
   "Payments & Banking",
-  "Expense & Cards",
+  "Design & Docs",
   "Docs & Comms",
 ];
 
 const LANDING_INTEGRATIONS: LandingIntegration[] = [
-  // ERP & Accounting
-  { slug: "netsuite", name: "NetSuite", domain: "netsuite.com", category: "ERP & Accounting" },
-  { slug: "sap", name: "SAP", domain: "sap.com", category: "ERP & Accounting" },
-  { slug: "oracle-fusion-ebs", name: "Oracle Fusion / EBS", domain: "oracle.com", category: "ERP & Accounting" },
-  { slug: "dynamics-365-finance", name: "Microsoft Dynamics 365 Finance", domain: "microsoft.com", category: "ERP & Accounting" },
-  { slug: "workday-financials", name: "Workday Financials", domain: "workday.com", category: "ERP & Accounting" },
-  { slug: "sage-intacct", name: "Sage Intacct", domain: "sageintacct.com", category: "ERP & Accounting" },
-  { slug: "blackline", name: "BlackLine", domain: "blackline.com", category: "ERP & Accounting" },
+  // PM & Field Systems
+  { slug: "procore", name: "Procore", domain: "procore.com", category: "PM & Field Systems" },
+  { slug: "autodesk-construction-cloud", name: "Autodesk Construction Cloud", domain: "autodesk.com", category: "PM & Field Systems" },
+  { slug: "oracle-primavera-p6", name: "Oracle Primavera P6", domain: "oracle.com", category: "PM & Field Systems" },
+  { slug: "buildertrend", name: "Buildertrend", domain: "buildertrend.com", category: "PM & Field Systems" },
+  { slug: "fieldwire", name: "Fieldwire", domain: "fieldwire.com", category: "PM & Field Systems" },
+  { slug: "bluebeam-pm", name: "Bluebeam", domain: "bluebeam.com", category: "PM & Field Systems" },
+  { slug: "sage-300-cre", name: "Sage 300 CRE", domain: "sage.com", category: "PM & Field Systems" },
 
   // Payments & Banking
-  { slug: "bill", name: "BILL.com", domain: "bill.com", category: "Payments & Banking" },
+  { slug: "mercury", name: "Mercury", domain: "mercury.com", category: "Payments & Banking" },
 
-  // Expense & Cards
-  { slug: "coupa", name: "Coupa", domain: "coupa.com", category: "Expense & Cards" },
-  { slug: "concur", name: "SAP Concur", domain: "concur.com", category: "Expense & Cards" },
+  // Design & Docs
+  { slug: "plangrid", name: "PlanGrid", domain: "plangrid.com", category: "Design & Docs" },
+  { slug: "e-builder", name: "e-Builder", domain: "e-builder.net", category: "Design & Docs" },
 
   // Docs & Comms
   { slug: "salesforce", name: "Salesforce", domain: "salesforce.com", category: "Docs & Comms" },
@@ -458,8 +459,8 @@ function IndexContent() {
   const { theme } = useTheme();
 
   const onAuthenticated = () => {
-    // The app is scoped to accounting.
-    setStoredIndustry("accounting");
+    // The app is scoped to construction.
+    setStoredIndustry("construction");
     navigate({ to: "/app" });
   };
 
@@ -541,7 +542,7 @@ function Nav({ onLogin, onBookDemo }: { onLogin: () => void; onBookDemo: () => v
 // ---------------- Hero ----------------
 
 const HERO_TRUST: { icon: LucideIcon; label: string }[] = [
-  { icon: Landmark, label: "Works with QuickBooks, Xero & NetSuite" },
+  { icon: Landmark, label: "Works with Procore, Autodesk Construction Cloud & Buildertrend" },
   { icon: ShieldCheck, label: "Human approval before anything posts" },
   { icon: ScrollText, label: "Full audit trail on every action" },
 ];
@@ -558,7 +559,7 @@ function Hero({ onBookDemo }: { onBookDemo: () => void }) {
       <div className="relative mx-auto max-w-7xl px-5 py-20 md:py-28">
         <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
           <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-          Built for CFOs, controllers & finance teams
+          Built for project executives, PMs & superintendents
         </div>
         <h1 className="max-w-3xl text-4xl font-semibold leading-[1.05] tracking-tight md:text-6xl">
           {HERO.tagline}
@@ -610,40 +611,40 @@ const CORE_CAPABILITIES: CoreCapability[] = [
   {
     name: "Document Intelligence",
     icon: FileText,
-    desc: "Reads invoices, receipts, and statements, then extracts clean, structured data.",
+    desc: "Reads RFIs, submittals, and daily logs, then extracts clean, structured data.",
     detail:
-      "Turns any inbound document — PDFs, scans, or phone photos — into structured, ledger-ready data without manual keying. Every field comes with a confidence score, so low-confidence extractions are flagged for a human instead of posted blindly.",
+      "Turns any inbound document — PDFs, scans, or phone photos from the field — into structured, project-ready data without manual keying. Every field comes with a confidence score, so low-confidence extractions are flagged for a human instead of posted blindly.",
     points: [
-      "OCR for invoices, receipts, and bank statements",
-      "Line-item, total, tax, and multi-currency parsing",
-      "Vendor and GL account recognition",
+      "OCR for RFIs, submittals, and daily logs",
+      "Drawing sheet, spec section, and cost-code parsing",
+      "Subcontractor and cost-code recognition",
       "Confidence scoring with human review on exceptions",
     ],
   },
   {
-    name: "Ledger Sync",
+    name: "Project Sync",
     icon: Landmark,
-    desc: "Two-way sync with QuickBooks, Xero, NetSuite, and Sage — coding and entries write back.",
+    desc: "Two-way sync with Procore, Autodesk Construction Cloud, and Buildertrend — status and entries write back.",
     detail:
-      "A live, two-way connection to your accounting system of record. Copilots read your chart of accounts and open items, then write approved entries straight back — no CSV exports, no re-keying, no drift between systems.",
+      "A live, two-way connection to your project management system of record. Copilots read your RFI logs, submittal registers, and cost codes, then write approved responses straight back — no CSV exports, no re-keying, no drift between systems.",
     points: [
-      "Two-way sync with QuickBooks, Xero, NetSuite & Sage",
-      "Automatic GL coding from your chart of accounts",
-      "Journal entry and invoice write-back",
-      "Vendor, customer, and dimension mapping",
+      "Two-way sync with Procore, Autodesk & Buildertrend",
+      "Automatic cost-code assignment from your budget",
+      "RFI response and submittal status write-back",
+      "Subcontractor, drawing, and cost-code mapping",
     ],
   },
   {
-    name: "Reconciliation Engine",
+    name: "Job Costing Engine",
     icon: Workflow,
-    desc: "Auto-matches bank, ledger, and sub-ledger activity and surfaces only the exceptions.",
+    desc: "Auto-matches draws, pay applications, and job cost activity and surfaces only the exceptions.",
     detail:
-      "Matches transactions across your bank feeds, general ledger, and AP/AR sub-ledgers automatically, then groups and explains only the exceptions that actually need a human — so reconciliations take minutes, not hours.",
+      "Matches transactions across your draw account, job cost ledger, and subcontractor pay applications automatically, then groups and explains only the exceptions that actually need a human — so reconciliations take minutes, not hours.",
     points: [
-      "Auto-matching by amount, date, and reference",
-      "Bank, AP, AR, and inter-company reconciliation",
+      "Auto-matching by cost code, amount, and reference",
+      "Draw, pay application, and inter-project reconciliation",
       "Exceptions grouped and explained in plain language",
-      "Suggested adjusting entries for fees and interest",
+      "Suggested adjusting entries for retainage and fees",
     ],
   },
   {
@@ -651,7 +652,7 @@ const CORE_CAPABILITIES: CoreCapability[] = [
     icon: ShieldCheck,
     desc: "Segregation of duties, policy checks, and human sign-off before anything posts.",
     detail:
-      "Every action a copilot proposes runs through your controls before it touches the ledger. Approval routing, spend thresholds, and policy checks are enforced automatically, and nothing posts without the right person signing off.",
+      "Every action a copilot proposes runs through your controls before it touches the project record. Approval routing, spend thresholds, and policy checks are enforced automatically, and nothing posts without the right person signing off.",
     points: [
       "Configurable approval routing and thresholds",
       "Segregation of duties enforced by role",
@@ -669,20 +670,20 @@ const CORE_CAPABILITIES: CoreCapability[] = [
       "Every action logged with user and timestamp",
       "One-click trace from entry back to source document",
       "Immutable history of edits and approvals",
-      "Exportable workpaper set for auditors",
+      "Exportable workpaper set for closeout and audit",
     ],
   },
   {
     name: "Reporting & Insights",
     icon: BarChart3,
-    desc: "P&L, balance sheet, and cash flow with variance commentary written for you.",
+    desc: "Cost reports, WIP schedules, and cash flow with variance commentary written for you.",
     detail:
-      "Turns your ledger data into board-ready reporting on demand. Statements are built, actuals compared against budget and prior period, and variances explained in plain language — ready for you to review and send.",
+      "Turns your job cost data into owner-ready reporting on demand. Cost reports and WIP schedules are built, actuals compared against budget and prior period, and variances explained in plain language — ready for you to review and send.",
     points: [
-      "P&L, balance sheet, and cash flow statements",
+      "Cost reports, WIP schedules, and cash flow statements",
       "Budget vs actual and prior-period comparisons",
       "Automatic variance commentary",
-      "Board- and management-ready exports",
+      "Owner- and leadership-ready exports",
     ],
   },
 ];
@@ -694,15 +695,15 @@ function CoreDiagram() {
       <div className="mx-auto max-w-7xl px-5">
         <div className="mb-12 flex max-w-2xl flex-col gap-3">
           <span className="font-mono text-xs uppercase tracking-wider text-primary">
-            The accounting core
+            The construction core
           </span>
           <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
-            Every copilot runs on the same finance operating system.
+            Every copilot runs on the same project operating system.
           </h2>
           <p className="text-sm text-muted-foreground md:text-base">
             Instead of rebuilding the basics for every task, each copilot inherits the same six
-            building blocks — document intelligence, ledger sync, reconciliation, controls, audit
-            trail, and reporting — already wired together and tuned for accounting. Click any block
+            building blocks — document intelligence, project sync, job costing, controls, audit
+            trail, and reporting — already wired together and tuned for construction. Click any block
             to see what it does.
           </p>
         </div>
@@ -775,7 +776,7 @@ function CoreModal({ capability, onClose }: { capability: CoreCapability; onClos
             </span>
             <div>
               <span className="font-mono text-[10px] font-medium uppercase tracking-wider text-primary">
-                Accounting core
+                Construction core
               </span>
               <h3 id="core-title" className="mt-0.5 text-xl font-semibold tracking-tight">
                 {capability.name}
@@ -1271,7 +1272,7 @@ function IntegrationCatalog() {
             Integrations
           </span>
           <h2 className="mx-auto max-w-2xl text-3xl font-semibold tracking-tight md:text-4xl">
-            12+ finance systems your copilots can talk to.
+            12+ project & field systems your copilots can talk to.
           </h2>
           <p className="mx-auto max-w-2xl text-sm text-muted-foreground">
             Authenticate once. Read and act everywhere.
@@ -1336,9 +1337,9 @@ function CatalogChip({
 
 function PlatformGrid() {
   const rows = [
-    { k: "Document Intelligence", v: "OCR for invoices, receipts, and statements with structured extraction." },
-    { k: "Ledger Sync", v: "Two-way sync with QuickBooks, Xero, NetSuite, and Sage." },
-    { k: "Reconciliation", v: "Auto-matching for bank, AP, AR, and inter-company activity." },
+    { k: "Document Intelligence", v: "OCR for RFIs, submittals, and daily logs with structured extraction." },
+    { k: "Project Sync", v: "Two-way sync with Procore, Autodesk Construction Cloud, and Buildertrend." },
+    { k: "Job Costing", v: "Auto-matching for draws, pay applications, and cost-code activity." },
     { k: "Controls", v: "Segregation of duties, approval routing, and policy checks." },
     { k: "Audit Trail", v: "Every action logged and traceable back to source." },
     { k: "Security", v: "SSO, role-based access, encryption, and data residency controls." },
@@ -1351,7 +1352,7 @@ function PlatformGrid() {
             Under the hood
           </span>
           <h2 className="mt-2 max-w-2xl text-3xl font-semibold tracking-tight md:text-4xl">
-            Enterprise-grade, built for the controls finance requires.
+            Enterprise-grade, built for the controls construction requires.
           </h2>
         </div>
         <div className="overflow-hidden rounded-2xl border border-border">
@@ -1381,11 +1382,11 @@ function CTASection({ onBookDemo }: { onBookDemo: () => void }) {
     <section id="cta" className="py-20">
       <div className="mx-auto max-w-4xl px-5 text-center">
         <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
-          Give your finance team back the close.
+          Give your project teams back their afternoons.
         </h2>
         <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
-          See how AP/AR, reconciliation, and reporting copilots run on your own stack. Book a demo,
-          or sign in to your workspace.
+          See how RFI, submittal, and job-costing copilots run on your own project stack. Book a
+          demo, or sign in to your workspace.
         </p>
         <button
           onClick={onBookDemo}
@@ -1400,11 +1401,38 @@ function CTASection({ onBookDemo }: { onBookDemo: () => void }) {
 
 // ---------------- Footer ----------------
 
+type FooterLink = { label: string; href?: string; comingSoon?: boolean };
+
 function Footer() {
-  const columns: { title: string; links: string[] }[] = [
-    { title: "Product", links: ["Copilots", "Platform", "Integrations", "Security"] },
-    { title: "Solutions", links: ["Accounts payable", "Accounts receivable", "Month-end close", "Accounting firms"] },
-    { title: "Company", links: ["About", "Customers", "Careers", "Contact"] },
+  const navigate = useNavigate();
+  const columns: { title: string; links: FooterLink[] }[] = [
+    {
+      title: "Product",
+      links: [
+        { label: "Copilots", href: "#copilots" },
+        { label: "Platform", href: "#platform" },
+        { label: "Integrations", href: "#integrations" },
+        { label: "Security", href: "#platform" },
+      ],
+    },
+    {
+      title: "Solutions",
+      links: [
+        { label: "RFIs & submittals", href: "#copilots" },
+        { label: "Billing & pay applications", href: "#copilots" },
+        { label: "Job cost closeout", href: "#copilots" },
+        { label: "General contractors", href: "#copilots" },
+      ],
+    },
+    {
+      title: "Company",
+      links: [
+        { label: "About", comingSoon: true },
+        { label: "Customers", comingSoon: true },
+        { label: "Careers", comingSoon: true },
+        { label: "Contact", href: "/demo" },
+      ],
+    },
   ];
   return (
     <footer className="border-t border-border bg-surface-2">
@@ -1415,8 +1443,8 @@ function Footer() {
               <LogoLockup />
             </div>
             <p className="mt-4 max-w-xs text-sm text-muted-foreground">
-              The AI operating system for accounting — AP/AR, reconciliation, close, and reporting,
-              with a human in control of every entry.
+              The AI operating system for construction — RFIs, submittals, job costing, and
+              closeout, with a human in control of every entry.
             </p>
           </div>
           {columns.map((col) => (
@@ -1426,10 +1454,28 @@ function Footer() {
               </div>
               <ul className="space-y-2.5 text-sm text-muted-foreground">
                 {col.links.map((l) => (
-                  <li key={l}>
-                    <a href="#" className="transition hover:text-foreground">
-                      {l}
-                    </a>
+                  <li key={l.label}>
+                    {l.comingSoon ? (
+                      <button
+                        type="button"
+                        onClick={() => toast(`${l.label} — coming soon`)}
+                        className="text-left transition hover:text-foreground"
+                      >
+                        {l.label}
+                      </button>
+                    ) : l.href?.startsWith("#") ? (
+                      <a href={l.href} className="transition hover:text-foreground">
+                        {l.label}
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => navigate({ to: l.href! })}
+                        className="text-left transition hover:text-foreground"
+                      >
+                        {l.label}
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -1437,8 +1483,8 @@ function Footer() {
           ))}
         </div>
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-border pt-6 text-xs text-muted-foreground md:flex-row">
-          <div>© {new Date().getFullYear()} Ledger AI OS. All rights reserved.</div>
-          <div className="font-mono">The AI operating system for accounting</div>
+          <div>© {new Date().getFullYear()} Industry AI OS. All rights reserved.</div>
+          <div className="font-mono">The AI operating system for construction</div>
         </div>
       </div>
     </footer>
@@ -1513,7 +1559,7 @@ function AuthModal({
             <p className="mt-1 text-xs text-muted-foreground">
               {tab === "login"
                 ? "Sign in to your workspace."
-                : "Get access to your accounting copilots."}
+                : "Get access to your construction copilots."}
             </p>
           </div>
           <button
@@ -1651,7 +1697,15 @@ function LoginForm({
         />
       </Field>
       <div className="flex items-center justify-between">
-        <button type="button" className="text-xs text-muted-foreground hover:text-foreground">
+        <button
+          type="button"
+          onClick={() =>
+            setErrors({
+              form: "Password reset isn't available in this demo — sign in with the account you signed up with.",
+            })
+          }
+          className="text-xs text-muted-foreground hover:text-foreground"
+        >
           Forgot password?
         </button>
       </div>
@@ -1751,7 +1805,7 @@ function SignupForm({
           value={company}
           onChange={(e) => setCompany(e.target.value)}
           className={inputCls}
-          placeholder="Acme LLP"
+          placeholder="Meridian Builders"
         />
       </Field>
       <Field label="Password" error={errors.password}>

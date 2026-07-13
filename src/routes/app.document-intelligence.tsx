@@ -8,11 +8,13 @@ import {
   Circle,
   ClipboardCheck,
   Download,
+  FileCheck2,
+  FileDiff,
   FileStack,
+  HelpCircle,
   Landmark,
+  PackageCheck,
   Printer,
-  Receipt,
-  ReceiptText,
   ScanLine,
   Search,
   Send,
@@ -20,10 +22,10 @@ import {
   Sparkles,
   Table2,
   User,
-  Wallet,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { cn } from "../lib/utils";
 
@@ -31,9 +33,9 @@ export const Route = createFileRoute("/app/document-intelligence")({
   component: DocumentIntelligencePage,
 });
 
-/* ─────────────────────────  Dummy data (accounting)  ───────────────────────── */
+/* ─────────────────────────  Dummy data (construction)  ───────────────────────── */
 
-type DocType = "invoice" | "receipt" | "bank-statement" | "purchase-order" | "expense-report";
+type DocType = "rfi" | "change-order" | "daily-log" | "draw-statement" | "submittal" | "lien-waiver";
 type Tone = "good" | "warn" | "bad" | "neutral";
 
 interface Field {
@@ -41,8 +43,8 @@ interface Field {
   value: string;
   confidence: number; // 0-100
 }
-interface GlLine {
-  account: string;
+interface CostCodeLine {
+  description: string;
   code: string;
   debit?: string;
   credit?: string;
@@ -74,7 +76,7 @@ interface DocumentItem {
   tags: string[];
   previewLines: string[];
   fields: Field[];
-  gl?: GlLine[];
+  costCodes?: CostCodeLine[];
   aiSummary: { text: string; bullets: string[] };
   risks: DocRisk[];
   actionItems: DocActionItem[];
@@ -82,27 +84,30 @@ interface DocumentItem {
 }
 
 const docTypeMeta: Record<DocType, { label: string; plural: string }> = {
-  invoice: { label: "Invoice", plural: "Invoices" },
-  receipt: { label: "Receipt", plural: "Receipts" },
-  "bank-statement": { label: "Bank Statement", plural: "Statements" },
-  "purchase-order": { label: "Purchase Order", plural: "POs" },
-  "expense-report": { label: "Expense Report", plural: "Expenses" },
+  rfi: { label: "RFI", plural: "RFIs" },
+  "change-order": { label: "Change Order", plural: "Change Orders" },
+  "daily-log": { label: "Daily Log", plural: "Daily Logs" },
+  "draw-statement": { label: "Draw Statement", plural: "Draw Statements" },
+  submittal: { label: "Submittal", plural: "Submittals" },
+  "lien-waiver": { label: "Lien Waiver", plural: "Lien Waivers" },
 };
 
 const docTypeIcon: Record<DocType, LucideIcon> = {
-  invoice: ReceiptText,
-  receipt: Receipt,
-  "bank-statement": Landmark,
-  "purchase-order": ClipboardCheck,
-  "expense-report": Wallet,
+  rfi: HelpCircle,
+  "change-order": FileDiff,
+  "daily-log": ClipboardCheck,
+  "draw-statement": Landmark,
+  submittal: PackageCheck,
+  "lien-waiver": FileCheck2,
 };
 
 const docTypeColor: Record<DocType, string> = {
-  invoice: "text-sky-500",
-  receipt: "text-emerald-500",
-  "bank-statement": "text-primary",
-  "purchase-order": "text-amber-500",
-  "expense-report": "text-violet-500",
+  rfi: "text-sky-500",
+  "change-order": "text-orange-500",
+  "daily-log": "text-emerald-500",
+  "draw-statement": "text-primary",
+  submittal: "text-amber-500",
+  "lien-waiver": "text-violet-500",
 };
 
 const severityTone: Record<DocRisk["severity"], Tone> = {
@@ -111,176 +116,178 @@ const severityTone: Record<DocRisk["severity"], Tone> = {
   high: "bad",
 };
 
-const documents: DocumentItem[] = [
+const SEED_DOCUMENTS: DocumentItem[] = [
   {
-    id: "inv-2214",
-    type: "invoice",
-    title: "Invoice #AC-2214 — Acme Supplies",
-    vendor: "Acme Supplies",
-    category: "Accounts Payable",
+    id: "rfi-2214",
+    type: "rfi",
+    title: "RFI #RFI-2214 — Apex Building Materials",
+    vendor: "Apex Building Materials",
+    category: "Cost Code Assignment",
     status: "Needs Approval",
     statusTone: "warn",
     date: "Jul 08, 2026",
-    author: "AP Inbox",
+    author: "Field Engineering Inbox",
     pages: 2,
     sizeKb: 486,
     amount: "$14,280.00",
     confidence: 97,
-    tags: ["AP", "3-way match", "PO-2214"],
+    tags: ["RFI", "cost impact", "CO-2214"],
     previewLines: [
-      "INVOICE",
-      "Acme Supplies · Invoice AC-2214",
-      "Bill to: Northwind LLP · Terms: Net 30",
-      "PO reference: PO-2214",
-      "LINE ITEMS",
-      "Steel fasteners — 1,200 units — $8,400.00",
-      "Freight & handling — $1,180.00",
-      "Sales tax (8.25%) — $1,200.00",
-      "TOTAL DUE",
-      "$14,280.00 — due Aug 07, 2026",
+      "REQUEST FOR INFORMATION",
+      "Apex Building Materials · RFI RFI-2214",
+      "Project: Riverside Tower · Spec Section: 03 30 00",
+      "Reference drawing: S-204 — Level 4 slab pour",
+      "RFI ITEMS",
+      "Cast-in-place concrete mix substitution — $8,400.00 cost impact",
+      "Additional equipment mobilization — $1,180.00 cost impact",
+      "Sales tax on materials (8.25%) — $1,200.00",
+      "TOTAL COST IMPACT",
+      "$14,280.00 — response due Aug 07, 2026",
     ],
     fields: [
-      { label: "Vendor", value: "Acme Supplies", confidence: 99 },
-      { label: "Invoice #", value: "AC-2214", confidence: 99 },
-      { label: "Invoice date", value: "Jul 08, 2026", confidence: 98 },
-      { label: "Due date", value: "Aug 07, 2026", confidence: 97 },
-      { label: "PO number", value: "PO-2214", confidence: 96 },
-      { label: "Subtotal", value: "$12,900.00", confidence: 99 },
-      { label: "Tax (8.25%)", value: "$1,200.00", confidence: 94 },
-      { label: "Freight", value: "$1,180.00", confidence: 71 },
-      { label: "Total due", value: "$14,280.00", confidence: 99 },
-      { label: "Terms", value: "Net 30", confidence: 95 },
+      { label: "Requesting sub", value: "Apex Building Materials", confidence: 99 },
+      { label: "RFI #", value: "RFI-2214", confidence: 99 },
+      { label: "Date submitted", value: "Jul 08, 2026", confidence: 98 },
+      { label: "Response due", value: "Aug 07, 2026", confidence: 97 },
+      { label: "Related CO", value: "CO-2214", confidence: 96 },
+      { label: "Cost impact — materials", value: "$12,900.00", confidence: 99 },
+      { label: "Sales tax (8.25%)", value: "$1,200.00", confidence: 94 },
+      { label: "Equipment mobilization", value: "$1,180.00", confidence: 71 },
+      { label: "Total cost impact", value: "$14,280.00", confidence: 99 },
+      { label: "Spec section", value: "03 30 00", confidence: 95 },
     ],
-    gl: [
-      { account: "Inventory — Materials", code: "1300", debit: "$12,900.00" },
-      { account: "Freight In", code: "5110", debit: "$1,180.00" },
-      { account: "Sales Tax Payable", code: "2200", debit: "$1,200.00" },
-      { account: "Accounts Payable — Acme", code: "2000", credit: "$14,280.00" },
+    costCodes: [
+      { description: "03 30 00 Cast-in-Place Concrete", code: "1300", debit: "$12,900.00" },
+      { description: "01 54 00 Construction Aids & Equipment", code: "5110", debit: "$1,180.00" },
+      { description: "Sales Tax Payable", code: "2200", debit: "$1,200.00" },
+      { description: "Accounts Payable — Apex Building Materials", code: "2000", credit: "$14,280.00" },
     ],
     aiSummary: {
-      text: "This **invoice** from Acme Supplies bills **$14,280.00** against **PO-2214** under Net 30 terms. Copilot ran a 3-way match and extracted line items, freight, and tax for review.",
+      text: "This **RFI** from Apex Building Materials requests cost-code assignment for **$14,280.00** in slab-pour changes tied to **CO-2214**. Copilot matched the RFI items to the project cost codes and drafted the coding for review.",
       bullets: [
-        "3-way match against PO-2214 and goods receipt succeeded on quantity and price.",
-        "Sales tax of $1,200.00 (8.25%) is consistent with the ship-to jurisdiction.",
-        "No duplicate invoice number was found in the last 12 months.",
+        "Cost-code match against CO-2214 and the approved budget succeeded on quantity and unit price.",
+        "Sales tax of $1,200.00 (8.25%) is consistent with the project jurisdiction.",
+        "No duplicate RFI number was found in the last 12 months.",
       ],
     },
     risks: [
-      { severity: "medium", text: "Freight charge of $1,180.00 was not on the original purchase order." },
-      { severity: "low", text: "Invoice arrived 3 days after the goods receipt date." },
+      { severity: "medium", text: "Equipment mobilization charge of $1,180.00 was not on the original scope." },
+      { severity: "low", text: "RFI arrived 3 days after the field observation date." },
     ],
     actionItems: [
-      { text: "Confirm freight is billable under the vendor agreement.", owner: "A. Reyes", due: "Jul 12", done: false },
-      { text: "Route to Controller for approval before posting.", owner: "AP Copilot", due: "Jul 12", done: false },
+      { text: "Confirm equipment mobilization is billable under the subcontract.", owner: "A. Reyes", due: "Jul 12", done: false },
+      { text: "Route to Project Controller for cost-code approval before posting.", owner: "AI Copilot", due: "Jul 12", done: false },
     ],
-    relatedIds: ["po-4482", "inv-2231"],
+    relatedIds: ["sub-4482", "co-2231"],
   },
   {
-    id: "inv-2231",
-    type: "invoice",
-    title: "Invoice #GX-2231 — Globex Corp",
-    vendor: "Globex Corp",
-    category: "Accounts Payable",
+    id: "co-2231",
+    type: "change-order",
+    title: "Change Order #CO-2231 — Coastal Glazing LLC",
+    vendor: "Coastal Glazing LLC",
+    category: "Cost Code Assignment",
     status: "Duplicate Flagged",
     statusTone: "bad",
     date: "Jul 09, 2026",
-    author: "AP Inbox",
+    author: "Field Engineering Inbox",
     pages: 1,
     sizeKb: 312,
     amount: "$6,540.00",
     confidence: 88,
-    tags: ["AP", "duplicate", "review"],
+    tags: ["CO", "duplicate", "review"],
     previewLines: [
-      "INVOICE",
-      "Globex Corp · Invoice GX-2231",
-      "Bill to: Northwind LLP · Terms: Net 15",
-      "Consulting services — June",
-      "TOTAL DUE",
+      "CHANGE ORDER",
+      "Coastal Glazing LLC · CO-2231",
+      "Project: Riverside Tower · Terms: Net 15",
+      "Curtain wall glazing rework — June",
+      "TOTAL COST IMPACT",
       "$6,540.00 — due Jul 24, 2026",
     ],
     fields: [
-      { label: "Vendor", value: "Globex Corp", confidence: 98 },
-      { label: "Invoice #", value: "GX-2231", confidence: 97 },
-      { label: "Invoice date", value: "Jul 09, 2026", confidence: 96 },
+      { label: "Subcontractor", value: "Coastal Glazing LLC", confidence: 98 },
+      { label: "Change order #", value: "CO-2231", confidence: 97 },
+      { label: "Date submitted", value: "Jul 09, 2026", confidence: 96 },
       { label: "Due date", value: "Jul 24, 2026", confidence: 95 },
-      { label: "Service period", value: "June 2026", confidence: 82 },
-      { label: "Total due", value: "$6,540.00", confidence: 99 },
+      { label: "Work period", value: "June 2026", confidence: 82 },
+      { label: "Total cost impact", value: "$6,540.00", confidence: 99 },
       { label: "Terms", value: "Net 15", confidence: 93 },
     ],
-    gl: [
-      { account: "Consulting Expense", code: "6400", debit: "$6,540.00" },
-      { account: "Accounts Payable — Globex", code: "2000", credit: "$6,540.00" },
+    costCodes: [
+      { description: "08 44 00 Curtain Wall & Glazing", code: "6400", debit: "$6,540.00" },
+      { description: "Accounts Payable — Coastal Glazing LLC", code: "2000", credit: "$6,540.00" },
     ],
     aiSummary: {
-      text: "This **invoice** from Globex Corp for **$6,540.00** closely matches a previously posted invoice. Copilot flagged it as a **likely duplicate** and paused it before payment.",
+      text: "This **change order** from Coastal Glazing LLC for **$6,540.00** closely matches a previously posted change order. Copilot flagged it as a **likely duplicate** and paused it before payment.",
       bullets: [
-        "Amount and vendor match invoice GX-2198 posted on Jun 28, 2026.",
-        "Service period overlaps an already-paid engagement.",
+        "Amount and subcontractor match change order CO-2198 posted on Jun 28, 2026.",
+        "Work period overlaps an already-paid glazing scope.",
         "Held from the payment run pending human confirmation.",
       ],
     },
     risks: [{ severity: "high", text: "Potential duplicate payment of $6,540.00 if approved without review." }],
     actionItems: [
-      { text: "Compare against GX-2198 and confirm with the vendor.", owner: "J. Lin", due: "Jul 11", done: false },
-      { text: "Reject or release from the payment hold.", owner: "Controller", due: "Jul 11", done: false },
+      { text: "Compare against CO-2198 and confirm with the subcontractor.", owner: "J. Lin", due: "Jul 11", done: false },
+      { text: "Reject or release from the payment hold.", owner: "Project Controller", due: "Jul 11", done: false },
     ],
-    relatedIds: ["inv-2214"],
+    relatedIds: ["rfi-2214"],
   },
   {
-    id: "rcpt-0912",
-    type: "receipt",
-    title: "Receipt — Client Dinner, Meridian Grill",
-    vendor: "Meridian Grill",
-    category: "T&E",
-    status: "Matched",
+    id: "dlog-0912",
+    type: "daily-log",
+    title: "Daily Log — Site Safety Walk, Riverside Tower",
+    vendor: "Riverside Tower Site Team",
+    category: "Field Documentation",
+    status: "Reviewed",
     statusTone: "good",
     date: "Jul 05, 2026",
     author: "M. Okafor",
     pages: 1,
     sizeKb: 92,
-    amount: "$218.40",
+    amount: "$340.00",
     confidence: 93,
-    tags: ["expense", "meals", "policy"],
+    tags: ["daily log", "safety", "site walk"],
     previewLines: [
-      "RECEIPT",
-      "Meridian Grill · Table 14",
-      "Party of 4 · Business meal",
-      "Subtotal — $182.00",
-      "Tip (20%) — $36.40",
-      "TOTAL",
-      "$218.40 — card ending 4417",
+      "DAILY LOG",
+      "Riverside Tower · Site Safety Walk",
+      "Conducted by M. Okafor · Crew on site: 24",
+      "Weather: 78°F, clear",
+      "OBSERVATIONS",
+      "Guardrail missing at Level 6 stair opening — corrected same day",
+      "Two workers without eye protection in Zone C — corrected on site",
+      "CORRECTIVE ACTION COST",
+      "$340.00 — replacement PPE & guardrail hardware",
     ],
     fields: [
-      { label: "Merchant", value: "Meridian Grill", confidence: 96 },
+      { label: "Site", value: "Riverside Tower", confidence: 96 },
       { label: "Date", value: "Jul 05, 2026", confidence: 97 },
-      { label: "Category", value: "Meals & Entertainment", confidence: 90 },
-      { label: "Subtotal", value: "$182.00", confidence: 98 },
-      { label: "Tip", value: "$36.40", confidence: 88 },
-      { label: "Total", value: "$218.40", confidence: 99 },
-      { label: "Card", value: "•••• 4417", confidence: 95 },
+      { label: "Category", value: "Safety Walk", confidence: 90 },
+      { label: "Crew on site", value: "24", confidence: 98 },
+      { label: "Weather", value: "78°F, clear", confidence: 95 },
+      { label: "Observations logged", value: "2", confidence: 93 },
+      { label: "Corrective action cost", value: "$340.00", confidence: 88 },
     ],
-    gl: [
-      { account: "Meals & Entertainment", code: "6220", debit: "$218.40" },
-      { account: "Corporate Card Clearing", code: "2100", credit: "$218.40" },
+    costCodes: [
+      { description: "01 35 00 Safety Requirements & Site Protection", code: "6220", debit: "$340.00" },
+      { description: "Accounts Payable — Subcontractors", code: "2100", credit: "$340.00" },
     ],
     aiSummary: {
-      text: "A **business meal receipt** for **$218.40** charged to the corporate card. Copilot matched it to the card transaction and checked it against the meals policy.",
+      text: "A **daily log** for a site safety walk at Riverside Tower on Jul 05. Copilot matched the two field observations to corrective actions and estimated the incidental PPE cost.",
       bullets: [
-        "Matched to card transaction on Jul 05 ending 4417.",
-        "Per-head amount of $54.60 is within the $75 meals policy limit.",
-        "Attendees and business purpose captured from the expense note.",
+        "Both safety observations were corrected same-day and closed out.",
+        "Corrective action cost of $340.00 is within the general conditions safety allowance.",
+        "Crew count and weather were captured from the field note.",
       ],
     },
-    risks: [{ severity: "low", text: "Tip of 20% is at the upper edge of the reimbursable range." }],
-    actionItems: [{ text: "Attach attendee list for audit trail.", owner: "M. Okafor", due: "Jul 10", done: true }],
-    relatedIds: ["exp-118"],
+    risks: [{ severity: "low", text: "Guardrail omission at Level 6 stair opening should be tracked for recurrence." }],
+    actionItems: [{ text: "Attach photos of corrected conditions for the safety file.", owner: "M. Okafor", due: "Jul 10", done: true }],
+    relatedIds: ["lw-118"],
   },
   {
-    id: "stmt-oct",
-    type: "bank-statement",
-    title: "Bank Statement — Mercury Operating (Jun)",
+    id: "draw-jun",
+    type: "draw-statement",
+    title: "Draw Statement — Mercury Bank, Riverside Tower (Jun)",
     vendor: "Mercury Bank",
-    category: "Reconciliation",
+    category: "Draw Reconciliation",
     status: "Reconciling",
     statusTone: "neutral",
     date: "Jul 01, 2026",
@@ -289,46 +296,46 @@ const documents: DocumentItem[] = [
     sizeKb: 1180,
     amount: "$482,190.11",
     confidence: 96,
-    tags: ["bank", "reconciliation", "June"],
+    tags: ["draw", "reconciliation", "June"],
     previewLines: [
-      "STATEMENT",
-      "Mercury Bank · Operating ••4102",
+      "DRAW STATEMENT",
+      "Mercury Bank · Riverside Tower Construction Loan ••4102",
       "Period: Jun 01 – Jun 30, 2026",
-      "Opening balance — $451,006.55",
-      "Deposits — $198,412.09",
-      "Withdrawals — $167,228.53",
+      "Opening draw balance — $451,006.55",
+      "Draws funded — $198,412.09",
+      "Disbursements to subcontractors — $167,228.53",
       "CLOSING BALANCE",
       "$482,190.11",
     ],
     fields: [
-      { label: "Account", value: "Operating •••• 4102", confidence: 99 },
+      { label: "Account", value: "Construction Loan •••• 4102", confidence: 99 },
       { label: "Period", value: "Jun 01 – Jun 30, 2026", confidence: 98 },
       { label: "Opening balance", value: "$451,006.55", confidence: 99 },
-      { label: "Total deposits", value: "$198,412.09", confidence: 97 },
-      { label: "Total withdrawals", value: "$167,228.53", confidence: 97 },
+      { label: "Total draws funded", value: "$198,412.09", confidence: 97 },
+      { label: "Total disbursements", value: "$167,228.53", confidence: 97 },
       { label: "Closing balance", value: "$482,190.11", confidence: 99 },
-      { label: "Transactions", value: "412", confidence: 92 },
+      { label: "Line items", value: "412", confidence: 92 },
     ],
     aiSummary: {
-      text: "The **June operating statement** closed at **$482,190.11**. Copilot auto-matched 96% of transactions to the ledger and grouped the remaining exceptions.",
+      text: "The **June draw statement** for Riverside Tower closed at **$482,190.11**. Copilot auto-matched 96% of disbursements to the project cost codes and grouped the remaining exceptions.",
       bullets: [
-        "412 transactions pulled; 398 auto-matched (96.6%).",
-        "14 exceptions grouped — mostly bank fees and pending deposits.",
-        "Two fee entries proposed for the general ledger.",
+        "412 disbursement lines pulled; 398 auto-matched (96.6%).",
+        "14 exceptions grouped — mostly bank fees and pending subcontractor draws.",
+        "Two fee entries proposed for the project cost code ledger.",
       ],
     },
-    risks: [{ severity: "medium", text: "$1,204.00 in unmatched withdrawals need a ledger entry before close." }],
+    risks: [{ severity: "medium", text: "$1,204.00 in unmatched disbursements need a cost code entry before close." }],
     actionItems: [
-      { text: "Post proposed fee journal entries.", owner: "S. Patel", due: "Jul 07", done: false },
+      { text: "Post proposed fee entries to the cost code ledger.", owner: "S. Patel", due: "Jul 07", done: false },
       { text: "Clear 14 grouped exceptions.", owner: "Recon Copilot", due: "Jul 07", done: false },
     ],
-    relatedIds: ["exp-118", "inv-2214"],
+    relatedIds: ["lw-118", "rfi-2214"],
   },
   {
-    id: "po-4482",
-    type: "purchase-order",
-    title: "Purchase Order PO-4482 — Nucor Steel",
-    vendor: "Nucor Steel",
+    id: "sub-4482",
+    type: "submittal",
+    title: "Submittal #SUB-4482 — Ironclad Steel Supply",
+    vendor: "Ironclad Steel Supply",
     category: "Procurement",
     status: "Approved",
     statusTone: "good",
@@ -338,47 +345,51 @@ const documents: DocumentItem[] = [
     sizeKb: 254,
     amount: "$28,900.00",
     confidence: 98,
-    tags: ["PO", "procurement", "steel"],
+    tags: ["submittal", "procurement", "steel"],
     previewLines: [
-      "PURCHASE ORDER",
-      "PO-4482 · Nucor Steel",
-      "Ship to: Northwind Yard 3",
-      "Rebar — 40 tons — $26,000.00",
+      "SUBMITTAL",
+      "SUB-4482 · Ironclad Steel Supply",
+      "Ship to: Riverside Tower Laydown Yard 3",
+      "Structural rebar — 40 tons — $26,000.00",
       "Delivery surcharge — $2,900.00",
       "TOTAL COMMITTED",
       "$28,900.00",
     ],
     fields: [
-      { label: "PO number", value: "PO-4482", confidence: 99 },
-      { label: "Vendor", value: "Nucor Steel", confidence: 98 },
-      { label: "Ship to", value: "Northwind Yard 3", confidence: 94 },
+      { label: "Submittal #", value: "SUB-4482", confidence: 99 },
+      { label: "Supplier", value: "Ironclad Steel Supply", confidence: 98 },
+      { label: "Ship to", value: "Riverside Tower Yard 3", confidence: 94 },
       { label: "Line total", value: "$26,000.00", confidence: 98 },
       { label: "Surcharge", value: "$2,900.00", confidence: 90 },
       { label: "Committed total", value: "$28,900.00", confidence: 99 },
-      { label: "Cost center", value: "Materials — CC-300", confidence: 91 },
+      { label: "Cost code", value: "Structural Steel — 05 12 00", confidence: 91 },
     ],
-    gl: [
-      { account: "Committed — Materials", code: "1310", debit: "$28,900.00" },
-      { account: "PO Encumbrance", code: "2900", credit: "$28,900.00" },
+    costCodes: [
+      {
+        description: "05 12 00 Structural Steel Framing — Committed Costs / Cost Code Encumbrance",
+        code: "1310",
+        debit: "$28,900.00",
+      },
+      { description: "Cost Code Encumbrance", code: "2900", credit: "$28,900.00" },
     ],
     aiSummary: {
-      text: "**Approved purchase order** committing **$28,900.00** to Nucor Steel for rebar. Copilot linked it to downstream invoices for 3-way matching.",
+      text: "**Approved submittal** committing **$28,900.00** to Ironclad Steel Supply for structural rebar. Copilot linked it to downstream RFIs for cost-code matching.",
       bullets: [
-        "Budget check passed against the materials cost center.",
+        "Budget check passed against the structural steel cost code.",
         "Delivery surcharge is covered under the master supply agreement.",
-        "Linked to invoice AC-2214 for receipt matching.",
+        "Linked to RFI-2214 for field receipt matching.",
       ],
     },
     risks: [{ severity: "low", text: "Delivery window overlaps a supplier lead-time extension notice." }],
     actionItems: [{ text: "Confirm receipt once materials arrive at Yard 3.", owner: "Receiving", due: "Jul 15", done: false }],
-    relatedIds: ["inv-2214"],
+    relatedIds: ["rfi-2214"],
   },
   {
-    id: "exp-118",
-    type: "expense-report",
-    title: "Expense Report — Q3 Sales Offsite",
-    vendor: "Sales Team",
-    category: "T&E",
+    id: "lw-118",
+    type: "lien-waiver",
+    title: "Lien Waiver — Q3 Retainage Release, Coastal Glazing LLC",
+    vendor: "Coastal Glazing LLC",
+    category: "Retainage",
     status: "Needs Approval",
     statusTone: "warn",
     date: "Jul 06, 2026",
@@ -387,50 +398,83 @@ const documents: DocumentItem[] = [
     sizeKb: 640,
     amount: "$3,914.72",
     confidence: 91,
-    tags: ["expense", "travel", "policy"],
+    tags: ["lien waiver", "retainage", "conditional"],
     previewLines: [
-      "EXPENSE REPORT",
-      "Q3 Sales Offsite · 6 attendees",
-      "Airfare — $2,140.00",
-      "Lodging — $1,196.32",
-      "Meals — $578.40",
-      "TOTAL CLAIMED",
+      "CONDITIONAL LIEN WAIVER",
+      "Q3 Retainage Release · Coastal Glazing LLC · Riverside Tower",
+      "Retainage held to date — $2,140.00",
+      "Retainage released this period — $1,196.32",
+      "Outstanding punch-list holdback — $578.40",
+      "TOTAL RELEASE REQUESTED",
       "$3,914.72",
     ],
     fields: [
-      { label: "Report", value: "Q3 Sales Offsite", confidence: 97 },
+      { label: "Waiver type", value: "Conditional — Q3 Retainage", confidence: 97 },
       { label: "Submitted by", value: "R. Danforth", confidence: 99 },
-      { label: "Attendees", value: "6", confidence: 95 },
-      { label: "Airfare", value: "$2,140.00", confidence: 96 },
-      { label: "Lodging", value: "$1,196.32", confidence: 78 },
-      { label: "Meals", value: "$578.40", confidence: 93 },
-      { label: "Total claimed", value: "$3,914.72", confidence: 99 },
+      { label: "Subcontractor", value: "Coastal Glazing LLC", confidence: 95 },
+      { label: "Retainage held to date", value: "$2,140.00", confidence: 96 },
+      { label: "Retainage released", value: "$1,196.32", confidence: 78 },
+      { label: "Punch-list holdback", value: "$578.40", confidence: 93 },
+      { label: "Total release requested", value: "$3,914.72", confidence: 99 },
     ],
-    gl: [
-      { account: "Travel — Airfare", code: "6210", debit: "$2,140.00" },
-      { account: "Travel — Lodging", code: "6215", debit: "$1,196.32" },
-      { account: "Meals & Entertainment", code: "6220", debit: "$578.40" },
-      { account: "Employee Reimbursements", code: "2150", credit: "$3,914.72" },
+    costCodes: [
+      { description: "Retainage Payable", code: "2150", debit: "$3,914.72" },
+      { description: "Accounts Payable — Coastal Glazing LLC", code: "2000", credit: "$3,914.72" },
     ],
     aiSummary: {
-      text: "An **expense report** claiming **$3,914.72** for the Q3 sales offsite. Copilot audited each line against policy and flagged one out-of-policy item.",
+      text: "A **conditional lien waiver** requesting **$3,914.72** in Q3 retainage release from Coastal Glazing LLC. Copilot checked the release against the punch-list holdback and flagged one item.",
       bullets: [
-        "18 of 19 line items passed the automated policy check.",
-        "All receipts are attached and legible.",
-        "Duplicate-claim check across the team returned clean.",
+        "18 of 19 punch-list items passed the automated close-out check.",
+        "All supporting lien waiver exhibits are attached and legible.",
+        "Duplicate-release check across the project returned clean.",
       ],
     },
-    risks: [{ severity: "medium", text: "One lodging night of $312.00 exceeds the $250 nightly cap." }],
+    risks: [{ severity: "medium", text: "One punch-list item of $312.00 remains open against the $250 holdback threshold." }],
     actionItems: [
-      { text: "Request justification for the over-cap lodging night.", owner: "Finance Mgr", due: "Jul 10", done: false },
-      { text: "Approve remaining in-policy lines for reimbursement.", owner: "Finance Mgr", due: "Jul 10", done: false },
+      { text: "Request confirmation the open punch-list item is resolved.", owner: "Finance Mgr", due: "Jul 10", done: false },
+      { text: "Approve remaining retainage for release.", owner: "Finance Mgr", due: "Jul 10", done: false },
     ],
-    relatedIds: ["rcpt-0912", "stmt-oct"],
+    relatedIds: ["dlog-0912", "draw-jun"],
   },
 ];
 
 function getDocumentsByIds(ids: string[]): DocumentItem[] {
-  return ids.map((id) => documents.find((d) => d.id === id)).filter((d): d is DocumentItem => Boolean(d));
+  return ids
+    .map((id) => SEED_DOCUMENTS.find((d) => d.id === id))
+    .filter((d): d is DocumentItem => Boolean(d));
+}
+
+function createUploadedDocument(file: File): DocumentItem {
+  const today = new Date().toLocaleDateString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+  });
+  return {
+    id: `doc_${Date.now().toString(36)}`,
+    type: "rfi",
+    title: file.name,
+    vendor: "—",
+    category: "Uploaded",
+    status: "Processing",
+    statusTone: "neutral",
+    date: today,
+    author: "You",
+    pages: 1,
+    sizeKb: Math.max(1, Math.round(file.size / 1024)),
+    amount: "—",
+    confidence: 0,
+    tags: ["uploaded"],
+    previewLines: ["Extraction in progress — this document was just uploaded."],
+    fields: [],
+    aiSummary: {
+      text: `**${file.name}** was just uploaded and is being processed. Extracted fields and a summary will appear here shortly.`,
+      bullets: [],
+    },
+    risks: [],
+    actionItems: [],
+    relatedIds: [],
+  };
 }
 
 /* ─────────────────────────  Shared helpers  ───────────────────────── */
@@ -513,9 +557,11 @@ function ConfidenceRing({ value, size = 44 }: { value: number; size?: number }) 
 /* ─────────────────────────  Page  ───────────────────────── */
 
 function DocumentIntelligencePage() {
+  const [documents, setDocuments] = useState<DocumentItem[]>(SEED_DOCUMENTS);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | DocType>("all");
-  const [selectedId, setSelectedId] = useState<string>(documents[0].id);
+  const [selectedId, setSelectedId] = useState<string>(SEED_DOCUMENTS[0].id);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filtered = useMemo(() => {
     let list = documents;
@@ -531,7 +577,7 @@ function DocumentIntelligencePage() {
       );
     }
     return list;
-  }, [query, typeFilter]);
+  }, [documents, query, typeFilter]);
 
   const selected = documents.find((d) => d.id === selectedId) ?? filtered[0] ?? documents[0];
 
@@ -539,8 +585,25 @@ function DocumentIntelligencePage() {
   const needApproval = documents.filter((d) => d.status.includes("Approval")).length;
   const avgConf = Math.round(documents.reduce((s, d) => s + d.confidence, 0) / documents.length);
 
+  const handleUpload = (file: File) => {
+    const doc = createUploadedDocument(file);
+    setDocuments((prev) => [doc, ...prev]);
+    setSelectedId(doc.id);
+    toast.success(`Uploaded ${file.name}`, { description: "Extraction is running — check back in a moment." });
+  };
+
   return (
     <div className="flex h-[calc(100vh-8rem)] flex-col">
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) handleUpload(f);
+          e.target.value = "";
+        }}
+      />
       <div className="flex flex-wrap items-end justify-between gap-3 pb-4">
         <div>
           <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
@@ -549,15 +612,26 @@ function DocumentIntelligencePage() {
           </div>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight md:text-3xl">Document workspace</h1>
           <p className="mt-1.5 max-w-xl text-sm text-muted-foreground">
-            AI reads invoices, receipts, statements, and expenses — extracting clean, ledger-ready
+            AI reads RFIs, submittals, daily logs, and draw statements — extracting clean, project-ready
             data with a confidence score on every field.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="h-9 rounded-lg border border-border bg-surface px-3.5 text-xs font-medium transition hover:border-primary/50 hover:text-primary">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="h-9 rounded-lg border border-border bg-surface px-3.5 text-xs font-medium transition hover:border-primary/50 hover:text-primary"
+          >
             Upload document
           </button>
-          <button className="brand-gradient inline-flex h-9 items-center gap-1.5 rounded-lg px-3.5 text-xs font-semibold text-primary-foreground shadow-sm shadow-primary/25 transition hover:opacity-90">
+          <button
+            onClick={() => {
+              document.getElementById("ask-ai-input")?.focus();
+              document
+                .getElementById("ask-ai-input")
+                ?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }}
+            className="brand-gradient inline-flex h-9 items-center gap-1.5 rounded-lg px-3.5 text-xs font-semibold text-primary-foreground shadow-sm shadow-primary/25 transition hover:opacity-90"
+          >
             <Sparkles className="h-3.5 w-3.5" />
             Ask AI Copilot
           </button>
@@ -588,7 +662,7 @@ function DocumentIntelligencePage() {
         <div className="nice-scroll col-span-12 min-h-0 space-y-5 overflow-y-auto pr-1 lg:col-span-6">
           <DocumentViewer doc={selected} />
           <ExtractedFieldsCard doc={selected} />
-          {selected.gl && <GlCodingCard doc={selected} />}
+          {selected.costCodes && <CostCodeCodingCard doc={selected} />}
           <AiSummaryCard doc={selected} />
           <ExtractedRisksCard doc={selected} />
           <ActionItemsCard doc={selected} />
@@ -645,7 +719,7 @@ function DocumentBrowser({
   selectedId: string;
   onSelect: (id: string) => void;
 }) {
-  const types: DocType[] = ["invoice", "receipt", "bank-statement", "purchase-order", "expense-report"];
+  const types: DocType[] = ["rfi", "change-order", "daily-log", "draw-statement", "submittal", "lien-waiver"];
 
   return (
     <section className={cn(PANEL, "flex h-full flex-col overflow-hidden")}>
@@ -750,6 +824,31 @@ function FilterChip({
 
 function DocumentViewer({ doc }: { doc: DocumentItem }) {
   const Icon = docTypeIcon[doc.type];
+
+  const handleDownload = () => {
+    const blob = new Blob(
+      [`${doc.title}\n${doc.vendor}\n${doc.date}\n\n${doc.previewLines.join("\n")}`],
+      { type: "text/plain" },
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${doc.title.replace(/[^a-z0-9]+/gi, "-")}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Downloaded ${doc.title}`);
+  };
+
+  const handleShare = async () => {
+    const link = `${window.location.origin}/app/document-intelligence#${doc.id}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      toast.success("Link copied to clipboard");
+    } catch {
+      toast.error("Couldn't copy the link");
+    }
+  };
+
   return (
     <section className={cn(PANEL, "overflow-hidden")}>
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-4">
@@ -787,14 +886,27 @@ function DocumentViewer({ doc }: { doc: DocumentItem }) {
             </div>
           </div>
           <div className="flex items-center gap-1.5">
-            {[Download, Printer, Share2].map((Btn, i) => (
-              <button
-                key={i}
-                className="grid h-8 w-8 place-items-center rounded-md border border-border text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
-              >
-                <Btn className="h-3.5 w-3.5" />
-              </button>
-            ))}
+            <button
+              onClick={handleDownload}
+              title="Download"
+              className="grid h-8 w-8 place-items-center rounded-md border border-border text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
+            >
+              <Download className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => window.print()}
+              title="Print"
+              className="grid h-8 w-8 place-items-center rounded-md border border-border text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
+            >
+              <Printer className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={handleShare}
+              title="Copy link"
+              className="grid h-8 w-8 place-items-center rounded-md border border-border text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
+            >
+              <Share2 className="h-3.5 w-3.5" />
+            </button>
           </div>
         </div>
       </header>
@@ -888,27 +1000,27 @@ function ExtractedFieldsCard({ doc }: { doc: DocumentItem }) {
   );
 }
 
-/* ─────────────────────────  GL Coding  ───────────────────────── */
+/* ─────────────────────────  Cost Code Coding  ───────────────────────── */
 
-function GlCodingCard({ doc }: { doc: DocumentItem }) {
-  if (!doc.gl) return null;
+function CostCodeCodingCard({ doc }: { doc: DocumentItem }) {
+  if (!doc.costCodes) return null;
   return (
     <section className={cn(PANEL, "overflow-hidden")}>
-      <SectionHeader icon={Table2} title="Suggested GL Coding" hint="Draft journal entry — review before posting" />
+      <SectionHeader icon={Table2} title="Suggested Cost Code Coding" hint="Draft cost code entry — review before posting" />
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-left text-[10px] uppercase tracking-wider text-muted-foreground">
-              <th className="px-5 py-2 font-medium">Account</th>
+              <th className="px-5 py-2 font-medium">Description</th>
               <th className="px-5 py-2 font-medium">Code</th>
               <th className="px-5 py-2 text-right font-medium">Debit</th>
               <th className="px-5 py-2 text-right font-medium">Credit</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {doc.gl.map((l, i) => (
+            {doc.costCodes.map((l, i) => (
               <tr key={i}>
-                <td className="px-5 py-2 font-medium">{l.account}</td>
+                <td className="px-5 py-2 font-medium">{l.description}</td>
                 <td className="px-5 py-2 font-mono text-xs text-muted-foreground">{l.code}</td>
                 <td className="px-5 py-2 text-right font-mono tabular-nums">{l.debit ?? "—"}</td>
                 <td className="px-5 py-2 text-right font-mono tabular-nums">{l.credit ?? "—"}</td>
@@ -1091,12 +1203,12 @@ function AskAiPanel({ doc }: { doc: DocumentItem }) {
       return `${doc.actionItems.length} action item(s): ${doc.actionItems
         .map((a) => `${a.text} (owner: ${a.owner}, due ${a.due})`)
         .join(" ")}`;
-    if (p.includes("gl") || p.includes("coding") || p.includes("journal") || p.includes("account"))
-      return doc.gl
-        ? `Suggested GL coding: ${doc.gl
-            .map((l) => `${l.account} (${l.code}) ${l.debit ? `Dr ${l.debit}` : `Cr ${l.credit}`}`)
+    if (p.includes("cost code") || p.includes("coding") || p.includes("account"))
+      return doc.costCodes
+        ? `Suggested cost code coding: ${doc.costCodes
+            .map((l) => `${l.description} (${l.code}) ${l.debit ? `Dr ${l.debit}` : `Cr ${l.credit}`}`)
             .join("; ")}.`
-        : "No GL coding was suggested for this document type.";
+        : "No cost code coding was suggested for this document type.";
     if (p.includes("amount") || p.includes("total") || p.includes("how much"))
       return `The total on this ${docTypeMeta[doc.type].label.toLowerCase()} is ${doc.amount}.`;
     if (p.includes("confidence") || p.includes("sure") || p.includes("accurate"))
@@ -1123,7 +1235,7 @@ function AskAiPanel({ doc }: { doc: DocumentItem }) {
     setInput("");
   };
 
-  const suggestions = ["Summarize this", "Any risks?", "Show the GL coding", "How confident are you?"];
+  const suggestions = ["Summarize this", "Any risks?", "Show the cost code coding", "How confident are you?"];
 
   return (
     <section className={cn(PANEL, "flex h-full flex-col overflow-hidden")}>
@@ -1170,6 +1282,7 @@ function AskAiPanel({ doc }: { doc: DocumentItem }) {
         className="flex items-center gap-2 border-t border-border p-3"
       >
         <input
+          id="ask-ai-input"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask about this document…"

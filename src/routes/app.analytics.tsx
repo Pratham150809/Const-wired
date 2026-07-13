@@ -52,13 +52,13 @@ const TREND: { week: string; ai: number; wf: number }[] = [
 ];
 
 const RECENT: { action: string; actor: string; time: string }[] = [
-  { action: "invoice.posted", actor: "AP Copilot", time: "Jul 13, 2026 10:42" },
+  { action: "rfi.response_posted", actor: "RFI Copilot", time: "Jul 13, 2026 10:42" },
   { action: "workflow.approved", actor: "a.reyes@northwind.co", time: "Jul 13, 2026 10:15" },
-  { action: "invoice.duplicate_flagged", actor: "AP Copilot", time: "Jul 13, 2026 09:58" },
+  { action: "change_order.duplicate_flagged", actor: "RFI Copilot", time: "Jul 13, 2026 09:58" },
   { action: "connector.invoke", actor: "Recon Copilot", time: "Jul 13, 2026 09:30" },
-  { action: "expense.audited", actor: "Audit Copilot", time: "Jul 13, 2026 09:12" },
+  { action: "daily_log.reviewed", actor: "Safety Copilot", time: "Jul 13, 2026 09:12" },
   { action: "chat.message", actor: "j.lin@northwind.co", time: "Jul 13, 2026 08:47" },
-  { action: "vendor.onboarded", actor: "r.danforth@northwind.co", time: "Jul 13, 2026 08:20" },
+  { action: "subcontractor.onboarded", actor: "r.danforth@northwind.co", time: "Jul 13, 2026 08:20" },
   { action: "report.generated", actor: "Reporting Copilot", time: "Jul 13, 2026 07:35" },
 ];
 

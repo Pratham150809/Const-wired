@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { FileText, Search, Upload } from "lucide-react";
+import { Download, FileText, Search, Upload } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { useDocuments, useUploadDocument, type DocumentItem } from "../api";
 import { DataTable, type Column } from "../components/common/DataTable";
@@ -29,6 +30,20 @@ function Documents() {
     return q ? all.filter((d) => d.filename.toLowerCase().includes(q)) : all;
   }, [documents.data, query]);
 
+  const handleDownload = (d: DocumentItem) => {
+    const blob = new Blob(
+      [`${d.filename}\nType: ${d.content_type ?? "unknown"}\nStatus: ${d.status}\nUploaded: ${d.created_at}`],
+      { type: "text/plain" },
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = d.filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Downloaded ${d.filename}`);
+  };
+
   const columns: Column<DocumentItem>[] = [
     {
       key: "filename",
@@ -43,6 +58,20 @@ function Documents() {
       header: "Uploaded",
       align: "right",
       render: (d) => new Date(d.created_at).toLocaleString(),
+    },
+    {
+      key: "actions",
+      header: "",
+      align: "right",
+      render: (d) => (
+        <button
+          onClick={() => handleDownload(d)}
+          title="Download"
+          className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
+        >
+          <Download className="h-3.5 w-3.5" />
+        </button>
+      ),
     },
   ];
 

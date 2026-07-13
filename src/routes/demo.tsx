@@ -24,38 +24,38 @@ import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/demo")({ component: Demo });
 
-/* ─────────────────────────  Content (accounting)  ───────────────────────── */
+/* ─────────────────────────  Content (construction)  ───────────────────────── */
 
 const features: { icon: LucideIcon; title: string; description: string }[] = [
   {
     icon: FileText,
     title: "Document Intelligence",
     description:
-      "See AI read invoices, receipts, and statements — extracting clean, ledger-ready data with a confidence score on every field.",
+      "See AI read RFIs, submittals, daily logs, and pay applications — extracting clean, project-ready data with a confidence score on every field.",
   },
   {
     icon: Workflow,
-    title: "AP/AR & Reconciliation Copilots",
+    title: "RFI, Submittal & Job Costing Copilots",
     description:
-      "Watch a 3-way match, duplicate check, and bank reconciliation run end to end, surfacing only the exceptions that need you.",
+      "Watch RFI routing, submittal review, and job costing run end to end, surfacing only the exceptions that need you.",
   },
   {
     icon: ShieldCheck,
     title: "Approvals & Controls",
     description:
-      "See segregation of duties, policy checks, and human sign-off enforced before anything posts to your ledger.",
+      "See segregation of duties, policy checks, and human sign-off enforced before anything posts to your project record.",
   },
   {
     icon: Landmark,
-    title: "Works With Your Ledger",
+    title: "Works With Your Project System",
     description:
-      "See how copilots sync two-way with QuickBooks, Xero, NetSuite, and Sage — reading your chart of accounts and writing entries back.",
+      "See how copilots sync two-way with Procore, Autodesk Construction Cloud, Buildertrend, and Sage 300 CRE — reading your project structure and writing entries back.",
   },
 ];
 
 const valuePoints = [
-  "Close the books days faster",
-  "Catch duplicates and overbilling before payment",
+  "Close out jobs days faster",
+  "Catch duplicate RFIs and change-order overbilling before approval",
   "A defensible audit trail on every action",
   "Free your team from manual data entry",
 ];
@@ -70,23 +70,30 @@ const trustBadges: { icon: LucideIcon; label: string }[] = [
 
 const nextSteps = [
   "We'll contact you within one business day.",
-  "We'll understand your current accounting workflows.",
-  "We'll tailor the demonstration around your close process.",
-  "You'll see how it integrates with your existing ledger and banks.",
+  "We'll understand your current project workflows.",
+  "We'll tailor the demonstration around your job closeout process.",
+  "You'll see how it integrates with your existing project system and subs.",
   "We'll discuss implementation approach and expected ROI.",
 ];
 
-const platformLogos = ["QuickBooks", "Xero", "NetSuite", "Sage", "SAP", "BILL"];
+const platformLogos = [
+  "Procore",
+  "Autodesk Construction Cloud",
+  "Buildertrend",
+  "Sage 300 CRE",
+  "Bluebeam",
+  "Fieldwire",
+];
 
 const teamSizeOptions = ["1–5", "6–20", "21–50", "51–200", "200+"];
 const ledgerOptions = [
-  "QuickBooks",
-  "Xero",
-  "NetSuite",
-  "Sage Intacct",
-  "SAP",
-  "Microsoft Dynamics",
-  "Oracle",
+  "Procore",
+  "Autodesk Construction Cloud",
+  "Buildertrend",
+  "Sage 300 CRE",
+  "CoConstruct",
+  "PlanGrid",
+  "Fieldwire",
   "Other",
 ];
 
@@ -124,15 +131,15 @@ function DemoContent() {
             </h1>
 
             <div className="mt-5 max-w-2xl space-y-4 text-[15px] leading-relaxed text-muted-foreground">
-              <p>Every finance team operates differently.</p>
+              <p>Every project team operates differently.</p>
               <p>
-                Different ledgers. Different banks. Different close processes and controls.
+                Different project systems. Different subs. Different closeout processes and controls.
               </p>
               <p>That's why every demonstration is tailored specifically to your business.</p>
               <p>
-                During the session, we'll show how the platform connects to your existing accounting
-                systems, automates AP/AR, reconciliation, and the month-end close, and keeps a human
-                in control of every entry — with a full audit trail.
+                During the session, we'll show how the platform connects to your existing project
+                systems, automates RFIs, submittals, change orders, and job cost closeout, and keeps a
+                human in control of every entry — with a full audit trail.
               </p>
             </div>
 
@@ -166,7 +173,7 @@ function DemoContent() {
             <div className="mt-8 rounded-2xl border border-border bg-surface p-6">
               <h3 className="flex items-center gap-2 text-sm font-semibold">
                 <BarChart3 className="h-4 w-4 text-primary" />
-                Why finance leaders choose us
+                Why project leaders choose us
               </h3>
               <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {valuePoints.map((v) => (
@@ -191,7 +198,7 @@ function DemoContent() {
         {/* Bottom: trusted-by */}
         <div className="mt-16 border-t border-border pt-10 text-center">
           <p className="mx-auto max-w-xl text-sm text-muted-foreground">
-            Trusted by finance teams turning accounting busywork into reviewed, audit-ready output.
+            Trusted by project teams turning field busywork into reviewed, audit-ready output.
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
             {platformLogos.map((name) => (
@@ -316,7 +323,7 @@ function DemoForm() {
       <h2 className="text-lg font-semibold">Request your demo</h2>
       <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
         Complete the form and our team will schedule a personalized demonstration based on your
-        workflows and accounting stack.
+        workflows and project system stack.
       </p>
 
       <div className="mt-6 space-y-4">
@@ -361,7 +368,7 @@ function DemoForm() {
               required
               value={form.jobTitle}
               onChange={update("jobTitle")}
-              placeholder="Controller"
+              placeholder="Project Manager"
               className={inputCls}
             />
           </div>
@@ -369,7 +376,7 @@ function DemoForm() {
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className={labelCls}>Finance team size</label>
+            <label className={labelCls}>Project team size</label>
             <select required value={form.teamSize} onChange={update("teamSize")} className={inputCls}>
               <option value="" disabled>
                 Select range
@@ -382,10 +389,10 @@ function DemoForm() {
             </select>
           </div>
           <div>
-            <label className={labelCls}>Current ledger</label>
+            <label className={labelCls}>Current project management system</label>
             <select required value={form.ledger} onChange={update("ledger")} className={inputCls}>
               <option value="" disabled>
-                Select ledger
+                Select system
               </option>
               {ledgerOptions.map((o) => (
                 <option key={o} value={o}>
@@ -402,7 +409,7 @@ function DemoForm() {
             value={form.message}
             onChange={update("message")}
             rows={3}
-            placeholder="Tell us about your close process, current challenges, or what you'd like to see during the demo."
+            placeholder="Tell us about your job closeout process, current challenges, or what you'd like to see during the demo."
             className={`${inputCls} h-auto resize-none py-2.5`}
           />
         </div>

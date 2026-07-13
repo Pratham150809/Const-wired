@@ -22,18 +22,18 @@ export const Route = createFileRoute("/app/knowledge")({ component: Knowledge })
 /* ─────────────────────────  Knowledge base (dummy data)  ───────────────────────── */
 
 type Category =
-  | "Accounts Payable"
-  | "Accounts Receivable"
-  | "Close & Reporting"
-  | "Tax & Compliance"
-  | "Policies & Controls";
+  | "RFIs & Submittals"
+  | "Billing & Pay Applications"
+  | "Job Costing & Closeout"
+  | "Safety & Compliance"
+  | "Subcontractor Management";
 
 const CATEGORIES: Category[] = [
-  "Accounts Payable",
-  "Accounts Receivable",
-  "Close & Reporting",
-  "Tax & Compliance",
-  "Policies & Controls",
+  "RFIs & Submittals",
+  "Billing & Pay Applications",
+  "Job Costing & Closeout",
+  "Safety & Compliance",
+  "Subcontractor Management",
 ];
 
 type Section = { heading: string; body: string; bullets?: string[] };
@@ -52,235 +52,235 @@ type Article = {
 
 const ARTICLES: Article[] = [
   {
-    id: "three-way-match",
-    title: "3-Way Match: how AP validates invoices",
-    category: "Accounts Payable",
+    id: "rfi-response-protocol",
+    title: "RFI Response Protocol: routing, review, and sign-off",
+    category: "RFIs & Submittals",
     icon: ClipboardCheck,
     excerpt:
-      "How an invoice is matched to its purchase order and goods receipt before it can post — and what to do when a line doesn't match.",
+      "How a Request for Information is routed to the right reviewer and answered within its SLA — and what to do when a response is late or unclear.",
     readMin: 4,
     updated: "Jul 08, 2026",
-    tags: ["AP", "matching", "controls"],
+    tags: ["RFI", "routing", "controls"],
     sections: [
       {
-        heading: "What a 3-way match is",
-        body: "A 3-way match compares three documents before an invoice is approved for payment: the vendor invoice, the purchase order (PO) that authorized the spend, and the goods receipt confirming what was delivered.",
+        heading: "What an RFI is",
+        body: "A Request for Information (RFI) is the formal channel the field team or a subcontractor uses to flag a design gap, conflict, or missing detail in the contract documents before work can proceed on that item — for example, a beam connection on Riverside Tower that isn't fully detailed on the structural drawings.",
       },
       {
         heading: "What the copilot checks",
-        body: "For each invoice line, the copilot verifies quantity, unit price, and total against the PO and receipt, and flags anything outside tolerance.",
+        body: "For each RFI, the copilot verifies it's routed to the right discipline, has a response due date set from the contract SLA, and flags any cost or schedule impact before it's sent.",
         bullets: [
-          "Quantity billed ≤ quantity received",
-          "Unit price matches the PO within tolerance",
-          "No duplicate invoice number for the vendor",
-          "Tax and freight are expected for the ship-to location",
+          "Routed to the responsible party — architect, structural engineer, or Project Executive — based on discipline",
+          "Response due date set per the contract SLA, typically 5–10 business days",
+          "Potential cost or schedule impact flagged for the PM's review",
+          "Linked to the affected drawing, spec section, or submittal",
         ],
       },
       {
-        heading: "When a line doesn't match",
-        body: "Mismatches are grouped as exceptions with a plain-language reason. Common cases: freight not on the PO, a partial delivery, or a price change. Resolve by confirming with procurement or the vendor, then re-run the match.",
+        heading: "When a response is late or unclear",
+        body: "Overdue RFIs are escalated with a plain-language reason: no reviewer assigned, response received but ambiguous, or field work blocked pending the answer. Resolve by having the Superintendent confirm the impact and the PM follow up with the design team, then log the final answer against the RFI before closing it.",
       },
     ],
   },
   {
-    id: "month-end-close",
-    title: "Month-end close checklist",
-    category: "Close & Reporting",
+    id: "job-cost-closeout-checklist",
+    title: "Job cost closeout checklist",
+    category: "Job Costing & Closeout",
     icon: ScrollText,
     excerpt:
-      "The standard sequence for closing the books each month, from bank reconciliations through to reporting.",
+      "The standard sequence for closing out job costs each period, from draw reconciliations through to reporting.",
     readMin: 6,
     updated: "Jul 01, 2026",
-    tags: ["close", "checklist", "reporting"],
+    tags: ["closeout", "checklist", "job costing"],
     sections: [
       {
         heading: "Before you start",
-        body: "Confirm all bank feeds have synced and the sub-ledgers (AP and AR) are cut off for the period. The close can't tie out if transactions are still posting.",
+        body: "Confirm all subcontractor pay applications have been submitted and the cost codes are cut off for the period. The closeout can't tie out if committed costs are still posting.",
       },
       {
         heading: "The core checklist",
         body: "Work the tasks in order — each depends on the one before it.",
         bullets: [
-          "Reconcile all bank and credit-card accounts",
-          "Post recurring accruals and prepaid schedules",
-          "Review and approve manual journal entries",
-          "Reconcile key balance-sheet accounts",
-          "Flag variances vs. prior period and budget",
-          "Lock the period and generate statements",
+          "Reconcile all draws and owner billings",
+          "Post recurring committed-cost accruals",
+          "Review and approve outstanding change order logs",
+          "Reconcile the job cost ledger to the general ledger",
+          "Flag cost overruns vs. budget and estimated cost at completion",
+          "Lock the period and generate the WIP (work-in-progress) report",
         ],
       },
       {
         heading: "Tracking what's outstanding",
-        body: "The close copilot reports blockers in real time — an unreconciled account or an unsigned journal entry — so nothing slips through before the period is locked.",
+        body: "The closeout copilot reports blockers in real time — an unreconciled draw or an unapproved change order — so nothing slips through before the period is locked.",
       },
     ],
   },
   {
-    id: "asc-606",
-    title: "Revenue recognition under ASC 606",
-    category: "Policies & Controls",
+    id: "percentage-of-completion",
+    title: "Percentage-of-completion revenue recognition",
+    category: "Job Costing & Closeout",
     icon: FileText,
     excerpt:
-      "The five-step model for recognizing revenue from customer contracts, in plain language.",
+      "The cost-to-cost method for recognizing revenue on long-term construction contracts, in plain language.",
     readMin: 5,
     updated: "Jun 24, 2026",
-    tags: ["revenue", "ASC 606", "policy"],
+    tags: ["revenue", "percentage-of-completion", "policy"],
     sections: [
       {
-        heading: "The five-step model",
-        body: "ASC 606 recognizes revenue when control of a good or service transfers to the customer, following five steps.",
+        heading: "The cost-to-cost method",
+        body: "Percentage-of-completion recognizes revenue on a long-term contract in proportion to the costs incurred against the total estimated cost, following five steps.",
         bullets: [
-          "Identify the contract with the customer",
-          "Identify the performance obligations",
-          "Determine the transaction price",
-          "Allocate the price to each obligation",
-          "Recognize revenue as each obligation is satisfied",
+          "Determine the total estimated cost to complete the contract",
+          "Track costs incurred to date against that estimate",
+          "Calculate percent complete: costs incurred ÷ estimated total cost",
+          "Apply percent complete to total contract revenue to date",
+          "Recognize revenue as the cost estimate is updated each period",
         ],
       },
       {
-        heading: "Point-in-time vs. over-time",
-        body: "Some obligations are satisfied at a single point (a product shipped), others over time (a subscription). The pattern of recognition should match how control transfers.",
+        heading: "Billings in excess vs. costs in excess",
+        body: "When billings to the owner outpace recognized revenue, the difference sits on the balance sheet as billings in excess of costs. When recognized revenue outpaces billings, it's costs in excess of billings. Both should be reviewed every period alongside the WIP schedule.",
       },
       {
         heading: "Common judgment areas",
-        body: "Variable consideration, bundled deliverables, and contract modifications need documented judgment. Keep the support with the contract for audit.",
+        body: "Estimated cost at completion, unapproved change orders, and contract modifications need documented judgment. Keep the support with the job file for audit.",
       },
     ],
   },
   {
-    id: "bank-reconciliation",
-    title: "Bank reconciliation SOP",
-    category: "Close & Reporting",
+    id: "draw-reconciliation",
+    title: "Draw reconciliation SOP",
+    category: "Job Costing & Closeout",
     icon: Landmark,
     excerpt:
-      "How to reconcile a bank statement to the ledger and clear the exceptions that need a human.",
+      "How to reconcile a construction loan draw to the job cost ledger and clear the exceptions that need a human.",
     readMin: 4,
     updated: "Jul 02, 2026",
-    tags: ["reconciliation", "bank", "SOP"],
+    tags: ["reconciliation", "draw", "SOP"],
     sections: [
       {
         heading: "Auto-matching",
-        body: "The copilot pulls bank transactions and ledger entries, then matches them by amount, date, and reference — typically clearing the large majority automatically.",
+        body: "The copilot pulls the draw request and the job cost ledger entries, then matches them by cost code, amount, and period — typically clearing the large majority automatically.",
       },
       {
         heading: "Working the exceptions",
-        body: "Unmatched items are grouped and explained. Bank fees and interest usually need a proposed journal entry; timing differences (deposits in transit) clear on their own next period.",
+        body: "Unmatched items are grouped and explained. Retention held back and lender-required documentation usually need a proposed adjustment; timing differences (costs incurred but not yet billed) clear on their own next period.",
         bullets: [
-          "Post proposed fee and interest entries",
-          "Confirm deposits in transit and outstanding checks",
+          "Post proposed retention and holdback entries",
+          "Confirm costs incurred but not yet drawn against",
           "Investigate any unexplained variance before sign-off",
         ],
       },
       {
         heading: "Sign-off",
-        body: "Once the adjusted balance ties to the statement, the controller approves and the reconciliation is closed with a documented match trail.",
+        body: "Once the adjusted draw ties to the job cost ledger, the Project Executive approves and the reconciliation is closed with a documented match trail.",
       },
     ],
   },
   {
-    id: "expense-policy",
-    title: "Expense policy & reimbursement",
-    category: "Policies & Controls",
+    id: "daily-log-safety-reporting",
+    title: "Daily log & site safety reporting policy",
+    category: "Safety & Compliance",
     icon: Wallet,
-    excerpt: "What's reimbursable, the approval limits, and how receipts are audited against policy.",
+    excerpt: "What belongs in the daily log, the reporting timelines, and how entries are audited against policy.",
     readMin: 3,
     updated: "Jun 30, 2026",
-    tags: ["expense", "T&E", "policy"],
+    tags: ["daily log", "safety", "policy"],
     sections: [
       {
-        heading: "Reimbursable expenses",
-        body: "Business travel, client meals, and approved software are reimbursable with an itemized receipt and a business purpose. Personal expenses and unapproved upgrades are not.",
+        heading: "What belongs in the daily log",
+        body: "Weather, crew counts, equipment on site, work performed, deliveries, and any safety incident or near-miss are logged daily by the Superintendent. Delays and disruptions need a documented cause.",
       },
       {
-        heading: "Limits",
-        body: "Standard caps apply unless pre-approved.",
+        heading: "Timelines",
+        body: "Standard reporting windows apply unless a site condition requires immediate escalation.",
         bullets: [
-          "Meals: up to $75 per person",
-          "Lodging: up to $250 per night",
-          "Any single item over $500 needs manager pre-approval",
+          "Daily log: submitted by end of shift",
+          "Near-miss or first-aid incident: reported within 4 hours",
+          "Any recordable incident: Project Executive notified immediately",
         ],
       },
       {
-        heading: "How claims are audited",
-        body: "The expense copilot reads each receipt, verifies merchant and amount, checks for duplicate or split claims, and flags anything outside policy for a human before reimbursement.",
+        heading: "How entries are audited",
+        body: "The site copilot reads each daily log, cross-checks crew counts and deliveries against schedule and procurement records, and flags anything inconsistent or missing for a human before it's filed.",
       },
     ],
   },
   {
-    id: "ar-collections",
-    title: "AR collections & dunning playbook",
-    category: "Accounts Receivable",
+    id: "owner-billing-pay-app",
+    title: "Owner billing & pay application playbook",
+    category: "Billing & Pay Applications",
     icon: Receipt,
-    excerpt: "How overdue receivables are prioritized and how reminder cadence escalates by stage.",
+    excerpt: "How outstanding pay applications are prioritized and how follow-up cadence escalates by stage.",
     readMin: 4,
     updated: "Jul 05, 2026",
-    tags: ["AR", "collections", "dunning"],
+    tags: ["billing", "pay application", "collections"],
     sections: [
       {
         heading: "Prioritizing accounts",
-        body: "Open invoices are ranked by risk using amount, days past due, and payment history, so effort goes where it matters most.",
+        body: "Open pay applications are ranked by risk using amount, days past due since submission, and the owner's payment history, so follow-up goes where it matters most.",
       },
       {
-        heading: "Dunning cadence",
-        body: "Reminders escalate in tone and channel as an invoice ages.",
+        heading: "Billing cadence",
+        body: "Follow-up escalates in tone and channel as a pay application ages past its due date.",
         bullets: [
-          "Day 1–7 past due: friendly reminder email",
-          "Day 8–30: firmer follow-up, copy the account owner",
-          "Day 31+: escalate to a call and a hold review",
+          "Day 1–15 past due: standard AIA G702/G703 submission reminder",
+          "Day 16–30: firmer follow-up, copy the Project Manager",
+          "Day 31+: escalate to the Project Executive and open a lien-notice review",
         ],
       },
       {
         heading: "Human in the loop",
-        body: "The copilot drafts each reminder per customer and stage; the controller reviews before anything is sent.",
+        body: "The copilot drafts each follow-up per owner and stage; the Project Executive reviews before anything is sent.",
       },
     ],
   },
   {
-    id: "sales-tax",
-    title: "Sales tax nexus & filing guide",
-    category: "Tax & Compliance",
+    id: "permit-inspection-compliance",
+    title: "Permit & inspection compliance guide",
+    category: "Safety & Compliance",
     icon: ShieldCheck,
-    excerpt: "When you owe sales tax in a jurisdiction, and how returns are prepared and reviewed.",
+    excerpt: "Which permits and inspections are required before work proceeds, and how compliance is tracked.",
     readMin: 5,
     updated: "Jul 10, 2026",
-    tags: ["tax", "nexus", "compliance"],
+    tags: ["permits", "inspections", "compliance"],
     sections: [
       {
-        heading: "What creates nexus",
-        body: "Nexus — the obligation to collect and remit tax — can be created by physical presence or by exceeding an economic threshold of sales or transactions in a state.",
+        heading: "What triggers a permit",
+        body: "A building permit or a trade-specific permit — electrical, mechanical, fire protection — can be triggered by scope of work, jurisdiction, or a change to the approved plans. Work started without the required permit puts the whole schedule at risk.",
       },
       {
-        heading: "Preparing a return",
-        body: "The tax copilot reviews transactions for taxability, recalculates tax by jurisdiction, flags mis-charged or exempt items, and prepares the return with supporting detail.",
+        heading: "Preparing for an inspection",
+        body: "The compliance copilot reviews the inspection checklist for the trade, confirms prerequisite inspections have passed, flags missing documentation, and prepares the inspection request with supporting photos and logs.",
       },
       {
-        heading: "Review before filing",
-        body: "Every prepared return is reviewed against the recalculated tax before submission, with a summary of what changed since the prior period.",
+        heading: "Review before scheduling",
+        body: "Every inspection request is reviewed against the current checklist before it's scheduled with the jurisdiction, with a summary of what's changed since the last inspection attempt.",
       },
     ],
   },
   {
-    id: "vendor-onboarding",
-    title: "Vendor onboarding & W-9 requirements",
-    category: "Accounts Payable",
+    id: "subcontractor-onboarding-lien-waiver",
+    title: "Subcontractor onboarding & lien waiver requirements",
+    category: "Subcontractor Management",
     icon: ClipboardCheck,
-    excerpt: "The documentation and checks required before a new vendor can be paid.",
+    excerpt: "The documentation and checks required before a new subcontractor can be paid.",
     readMin: 3,
     updated: "Jun 22, 2026",
-    tags: ["AP", "vendor", "onboarding"],
+    tags: ["subcontractor", "lien waiver", "onboarding"],
     sections: [
       {
         heading: "Required documentation",
-        body: "Before the first payment, collect a completed W-9 (or W-8 for foreign vendors) and verified banking details.",
+        body: "Before the first payment, collect a signed subcontract, a certificate of insurance (COI) meeting the project's coverage limits, a completed W-9, and a conditional lien waiver for the pay period.",
       },
       {
         heading: "Verification checks",
-        body: "The copilot validates the TIN, screens against sanctions and denied-party lists, and checks for a duplicate vendor record before drafting the vendor master.",
-        bullets: ["TIN validation", "Sanctions / denied-party screening", "Duplicate-vendor check"],
+        body: "The copilot validates the COI coverage and expiration, screens license and bonding status against the state registry, and checks for a duplicate subcontractor record before drafting the subcontractor master.",
+        bullets: ["COI coverage-limit validation", "License and bonding verification", "Duplicate-subcontractor check"],
       },
       {
         heading: "Approval",
-        body: "The drafted vendor record is routed to Finance for approval before it becomes payable.",
+        body: "The drafted subcontractor record is routed to the Project Executive for approval before it becomes payable, and every subsequent pay application requires an updated lien waiver.",
       },
     ],
   },
@@ -322,10 +322,10 @@ function Knowledge() {
           Knowledge Base
         </div>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-          Accounting knowledge base
+          Construction knowledge base
         </h1>
         <p className="mt-1.5 max-w-xl text-sm text-muted-foreground">
-          Policies, SOPs, and how-to guides for your close, AP/AR, and compliance workflows.
+          Policies, SOPs, and how-to guides for your RFIs, billing, and compliance workflows.
         </p>
       </div>
 

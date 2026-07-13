@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Building2, Cpu, KeyRound, LogOut, UserCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { api, useTenant } from "../api";
 import { EmptyState } from "../components/common/states";
@@ -53,7 +54,15 @@ function initials(text: string) {
 function SettingsPage() {
   const { me } = useSession();
   const tenant = useTenant();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const identity = me?.email ?? me?.user_id ?? "user";
+
+  const handleSignOut = () => {
+    api.logout();
+    queryClient.clear();
+    navigate({ to: "/" });
+  };
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -90,7 +99,7 @@ function SettingsPage() {
           </div>
         </div>
         <button
-          onClick={() => api.logout()}
+          onClick={handleSignOut}
           className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium text-muted-foreground transition hover:border-destructive/50 hover:text-destructive"
         >
           <LogOut className="h-3.5 w-3.5" /> Sign out
