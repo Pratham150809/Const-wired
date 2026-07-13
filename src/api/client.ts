@@ -13,6 +13,14 @@ const API_URL: string =
 
 const TOKEN_KEY = "aios.access_token";
 
+// --- Dummy auth -------------------------------------------------------------
+// Temporary client-side auth: while the backend OAuth/registration flow is not
+// wired, sign up and log in are served entirely from localStorage. Flip this to
+// `false` to restore the real gateway-backed auth below.
+const DUMMY_AUTH = true;
+const USERS_KEY = "aios.dummy_users";
+const SESSION_KEY = "aios.dummy_session";
+
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem(TOKEN_KEY);
@@ -23,7 +31,10 @@ function setToken(token: string): void {
 }
 
 export function logout(): void {
-  if (typeof window !== "undefined") window.localStorage.removeItem(TOKEN_KEY);
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(TOKEN_KEY);
+    window.localStorage.removeItem(SESSION_KEY);
+  }
 }
 
 export class ApiError extends Error {
@@ -153,7 +164,78 @@ export interface ChatReply {
 }
 
 // ---------------------------------------------------------------- auth
+export interface SignupInput {
+  name: string;
+  email: string;
+  company: string;
+  password: string;
+}
+
+// --- Dummy auth helpers (localStorage-backed) ---
+interface DummyUser extends SignupInput {}
+
+function readDummyUsers(): DummyUser[] {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(window.localStorage.getItem(USERS_KEY) ?? "[]") as DummyUser[];
+  } catch {
+    return [];
+  }
+}
+
+function writeDummyUsers(users: DummyUser[]): void {
+  window.localStorage.setItem(USERS_KEY, JSON.stringify(users));
+}
+
+function meFromDummy(user: DummyUser): Me {
+  const slug =
+    user.company
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "workspace";
+  return {
+    user_id: user.email,
+    email: user.email,
+    tenant_id: slug,
+    tenant_slug: slug,
+    roles: ["owner", "admin"], // full access for the demo account
+  };
+}
+
+function startDummySession(user: DummyUser): Me {
+  const me = meFromDummy(user);
+  window.localStorage.setItem(SESSION_KEY, JSON.stringify(me));
+  setToken(`dummy.${btoa(user.email)}`);
+  return me;
+}
+
+function dummyLogin(email: string, password: string): Me {
+  const user = readDummyUsers().find((u) => u.email.toLowerCase() === email.toLowerCase());
+  if (!user || user.password !== password) {
+    throw new ApiError("Invalid email or password.", 401);
+  }
+  return startDummySession(user);
+}
+
+function dummySignup(input: SignupInput): Me {
+  const users = readDummyUsers();
+  if (users.some((u) => u.email.toLowerCase() === input.email.toLowerCase())) {
+    throw new ApiError("An account with this email already exists.", 409);
+  }
+  users.push(input);
+  writeDummyUsers(users);
+  return startDummySession(input);
+}
+
+function dummyMe(): Me {
+  const raw = typeof window !== "undefined" ? window.localStorage.getItem(SESSION_KEY) : null;
+  if (!raw) throw new ApiError("Not authenticated", 401);
+  return JSON.parse(raw) as Me;
+}
+
 export async function login(email: string, password: string): Promise<Me> {
+  if (DUMMY_AUTH) return dummyLogin(email, password);
   const token = await request<TokenResponse>("/auth/token", {
     method: "POST",
     body: JSON.stringify({ username: email, password }),
@@ -162,7 +244,13 @@ export async function login(email: string, password: string): Promise<Me> {
   return getMe();
 }
 
+export async function signup(input: SignupInput): Promise<Me> {
+  if (DUMMY_AUTH) return dummySignup(input);
+  throw new ApiError("Self-serve signup is not available yet.", 501);
+}
+
 export function getMe(): Promise<Me> {
+  if (DUMMY_AUTH) return Promise.resolve(dummyMe());
   return request<Me>("/api/identity/me");
 }
 
@@ -332,6 +420,7 @@ export const api = {
   getToken,
   logout,
   login,
+  signup,
   getMe,
   chat,
   chatStream,

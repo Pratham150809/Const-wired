@@ -4,10 +4,9 @@ import {
   BookOpen,
   Cable,
   ClipboardCheck,
-  FileText,
+  FileSearch,
   LayoutDashboard,
   Settings,
-  ShieldCheck,
   Workflow,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -25,12 +24,11 @@ export type NavItem = {
 export const NAV: NavItem[] = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/app/assistant", label: "AI Assistant", icon: Bot },
-  { to: "/app/documents", label: "Documents", icon: FileText },
+  { to: "/app/document-intelligence", label: "Document Intelligence", icon: FileSearch },
   { to: "/app/workflows", label: "Workflows", icon: Workflow },
   { to: "/app/approvals", label: "Approvals", icon: ClipboardCheck },
   { to: "/app/knowledge", label: "Knowledge", icon: BookOpen },
   { to: "/app/connectors", label: "Connectors", icon: Cable },
   { to: "/app/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/app/settings", label: "Settings", icon: Settings },
-  { to: "/app/admin", label: "Admin", icon: ShieldCheck, managerOnly: true },
 ];

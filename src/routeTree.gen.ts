@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as DemoRouteImport } from './routes/demo'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
@@ -16,12 +17,18 @@ import { Route as AppWorkflowsRouteImport } from './routes/app.workflows'
 import { Route as AppSettingsRouteImport } from './routes/app.settings'
 import { Route as AppKnowledgeRouteImport } from './routes/app.knowledge'
 import { Route as AppDocumentsRouteImport } from './routes/app.documents'
+import { Route as AppDocumentIntelligenceRouteImport } from './routes/app.document-intelligence'
 import { Route as AppConnectorsRouteImport } from './routes/app.connectors'
 import { Route as AppAssistantRouteImport } from './routes/app.assistant'
 import { Route as AppApprovalsRouteImport } from './routes/app.approvals'
 import { Route as AppAnalyticsRouteImport } from './routes/app.analytics'
 import { Route as AppAdminRouteImport } from './routes/app.admin'
 
+const DemoRoute = DemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppRoute = AppRouteImport.update({
   id: '/app',
   path: '/app',
@@ -57,6 +64,11 @@ const AppDocumentsRoute = AppDocumentsRouteImport.update({
   path: '/documents',
   getParentRoute: () => AppRoute,
 } as any)
+const AppDocumentIntelligenceRoute = AppDocumentIntelligenceRouteImport.update({
+  id: '/document-intelligence',
+  path: '/document-intelligence',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppConnectorsRoute = AppConnectorsRouteImport.update({
   id: '/connectors',
   path: '/connectors',
@@ -86,11 +98,13 @@ const AppAdminRoute = AppAdminRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
+  '/demo': typeof DemoRoute
   '/app/admin': typeof AppAdminRoute
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/assistant': typeof AppAssistantRoute
   '/app/connectors': typeof AppConnectorsRoute
+  '/app/document-intelligence': typeof AppDocumentIntelligenceRoute
   '/app/documents': typeof AppDocumentsRoute
   '/app/knowledge': typeof AppKnowledgeRoute
   '/app/settings': typeof AppSettingsRoute
@@ -99,11 +113,13 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/demo': typeof DemoRoute
   '/app/admin': typeof AppAdminRoute
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/assistant': typeof AppAssistantRoute
   '/app/connectors': typeof AppConnectorsRoute
+  '/app/document-intelligence': typeof AppDocumentIntelligenceRoute
   '/app/documents': typeof AppDocumentsRoute
   '/app/knowledge': typeof AppKnowledgeRoute
   '/app/settings': typeof AppSettingsRoute
@@ -114,11 +130,13 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
+  '/demo': typeof DemoRoute
   '/app/admin': typeof AppAdminRoute
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/approvals': typeof AppApprovalsRoute
   '/app/assistant': typeof AppAssistantRoute
   '/app/connectors': typeof AppConnectorsRoute
+  '/app/document-intelligence': typeof AppDocumentIntelligenceRoute
   '/app/documents': typeof AppDocumentsRoute
   '/app/knowledge': typeof AppKnowledgeRoute
   '/app/settings': typeof AppSettingsRoute
@@ -130,11 +148,13 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/app'
+    | '/demo'
     | '/app/admin'
     | '/app/analytics'
     | '/app/approvals'
     | '/app/assistant'
     | '/app/connectors'
+    | '/app/document-intelligence'
     | '/app/documents'
     | '/app/knowledge'
     | '/app/settings'
@@ -143,11 +163,13 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/demo'
     | '/app/admin'
     | '/app/analytics'
     | '/app/approvals'
     | '/app/assistant'
     | '/app/connectors'
+    | '/app/document-intelligence'
     | '/app/documents'
     | '/app/knowledge'
     | '/app/settings'
@@ -157,11 +179,13 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/app'
+    | '/demo'
     | '/app/admin'
     | '/app/analytics'
     | '/app/approvals'
     | '/app/assistant'
     | '/app/connectors'
+    | '/app/document-intelligence'
     | '/app/documents'
     | '/app/knowledge'
     | '/app/settings'
@@ -172,10 +196,18 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  DemoRoute: typeof DemoRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/demo': {
+      id: '/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof DemoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app': {
       id: '/app'
       path: '/app'
@@ -225,6 +257,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDocumentsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/document-intelligence': {
+      id: '/app/document-intelligence'
+      path: '/document-intelligence'
+      fullPath: '/app/document-intelligence'
+      preLoaderRoute: typeof AppDocumentIntelligenceRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/connectors': {
       id: '/app/connectors'
       path: '/connectors'
@@ -269,6 +308,7 @@ interface AppRouteChildren {
   AppApprovalsRoute: typeof AppApprovalsRoute
   AppAssistantRoute: typeof AppAssistantRoute
   AppConnectorsRoute: typeof AppConnectorsRoute
+  AppDocumentIntelligenceRoute: typeof AppDocumentIntelligenceRoute
   AppDocumentsRoute: typeof AppDocumentsRoute
   AppKnowledgeRoute: typeof AppKnowledgeRoute
   AppSettingsRoute: typeof AppSettingsRoute
@@ -282,6 +322,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppApprovalsRoute: AppApprovalsRoute,
   AppAssistantRoute: AppAssistantRoute,
   AppConnectorsRoute: AppConnectorsRoute,
+  AppDocumentIntelligenceRoute: AppDocumentIntelligenceRoute,
   AppDocumentsRoute: AppDocumentsRoute,
   AppKnowledgeRoute: AppKnowledgeRoute,
   AppSettingsRoute: AppSettingsRoute,
@@ -294,6 +335,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  DemoRoute: DemoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

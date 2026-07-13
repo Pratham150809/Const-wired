@@ -463,6 +463,8 @@ function IndexContent() {
     navigate({ to: "/app" });
   };
 
+  const onBookDemo = () => navigate({ to: "/demo" });
+
   return (
     <div
       className={cn(
@@ -470,14 +472,14 @@ function IndexContent() {
         theme === "dark" && "dark",
       )}
     >
-      <Nav onLogin={() => setAuthOpen(true)} />
-      <Hero onLogin={() => setAuthOpen(true)} />
+      <Nav onLogin={() => setAuthOpen(true)} onBookDemo={onBookDemo} />
+      <Hero onBookDemo={onBookDemo} />
       <IntegrationCatalog />
       <CopilotLibrary />
       <CoreDiagram />
       <WorkflowSection content={CLOSE_WORKFLOW} />
       <PlatformGrid />
-      <CTASection onLogin={() => setAuthOpen(true)} />
+      <CTASection onBookDemo={onBookDemo} />
       <Footer />
       {authOpen && (
         <AuthModal onClose={() => setAuthOpen(false)} onAuthenticated={onAuthenticated} />
@@ -488,7 +490,7 @@ function IndexContent() {
 
 // ---------------- Nav ----------------
 
-function Nav({ onLogin }: { onLogin: () => void }) {
+function Nav({ onLogin, onBookDemo }: { onLogin: () => void; onBookDemo: () => void }) {
   const { theme, toggle } = useTheme();
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur">
@@ -525,7 +527,7 @@ function Nav({ onLogin }: { onLogin: () => void }) {
             Log in
           </button>
           <button
-            onClick={onLogin}
+            onClick={onBookDemo}
             className="brand-gradient rounded-lg px-4 py-1.5 text-sm font-semibold text-primary-foreground shadow-sm shadow-primary/30 transition hover:opacity-90"
           >
             Book a demo
@@ -544,7 +546,7 @@ const HERO_TRUST: { icon: LucideIcon; label: string }[] = [
   { icon: ScrollText, label: "Full audit trail on every action" },
 ];
 
-function Hero({ onLogin }: { onLogin: () => void }) {
+function Hero({ onBookDemo }: { onBookDemo: () => void }) {
   return (
     <section className="relative border-b border-border/60">
       {/* Decorative layer is clipped on its own so it never overflows the section. */}
@@ -565,7 +567,7 @@ function Hero({ onLogin }: { onLogin: () => void }) {
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-stretch">
           <button
-            onClick={onLogin}
+            onClick={onBookDemo}
             className="brand-gradient inline-flex items-center justify-center rounded-xl px-6 py-3 text-sm font-semibold uppercase tracking-wide text-primary-foreground shadow-lg shadow-primary/30 transition hover:-translate-y-0.5 hover:opacity-95"
           >
             Book a demo
@@ -1374,7 +1376,7 @@ function PlatformGrid() {
 
 // ---------------- CTA ----------------
 
-function CTASection({ onLogin }: { onLogin: () => void }) {
+function CTASection({ onBookDemo }: { onBookDemo: () => void }) {
   return (
     <section id="cta" className="py-20">
       <div className="mx-auto max-w-4xl px-5 text-center">
@@ -1386,7 +1388,7 @@ function CTASection({ onLogin }: { onLogin: () => void }) {
           or sign in to your workspace.
         </p>
         <button
-          onClick={onLogin}
+          onClick={onBookDemo}
           className="brand-gradient mt-6 inline-flex items-center justify-center rounded-lg px-6 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/30 transition hover:-translate-y-0.5 hover:opacity-95"
         >
           Book a demo
@@ -1557,7 +1559,7 @@ function AuthModal({
         ) : tab === "login" ? (
           <LoginForm firstFieldRef={firstFieldRef} onAuthenticated={onAuthenticated} />
         ) : (
-          <SignupForm firstFieldRef={firstFieldRef} onSuccess={(m) => setStatus(m)} />
+          <SignupForm firstFieldRef={firstFieldRef} onAuthenticated={onAuthenticated} />
         )}
       </div>
     </div>
@@ -1587,15 +1589,6 @@ const inputCls =
 
 function isEmail(v: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
-}
-
-async function handleSignup(_: { name: string; email: string; company: string; password: string }) {
-  // NOTE: self-serve signup is not backed yet — the backend has no public
-  // registration endpoint (Keycloak registration is disabled; users are created
-  // by a tenant admin via the identity service). Left as a stub until that
-  // decision is made. See PROJECT_MEMORY.md.
-  await new Promise((r) => setTimeout(r, 400));
-  return { ok: true };
 }
 
 function LoginForm({
@@ -1697,10 +1690,10 @@ function LoginForm({
 
 function SignupForm({
   firstFieldRef,
-  onSuccess,
+  onAuthenticated,
 }: {
   firstFieldRef: React.RefObject<HTMLInputElement | null>;
-  onSuccess: (msg: string) => void;
+  onAuthenticated: () => void;
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -1720,9 +1713,16 @@ function SignupForm({
     setErrors(errs);
     if (Object.keys(errs).length) return;
     setLoading(true);
-    await handleSignup({ name, email, company, password });
-    setLoading(false);
-    onSuccess(`Check your email — we sent a confirmation link to ${email}.`);
+    try {
+      await api.signup({ name, email, company, password });
+      onAuthenticated(); // account created + signed in — go straight into /app
+    } catch (err) {
+      const msg =
+        err instanceof ApiError ? err.message : "Could not create your account. Try again.";
+      setErrors({ form: msg });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -1764,6 +1764,11 @@ function SignupForm({
           autoComplete="new-password"
         />
       </Field>
+      {errors.form && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          {errors.form}
+        </div>
+      )}
       <button
         type="submit"
         disabled={loading}
