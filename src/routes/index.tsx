@@ -3,21 +3,30 @@ import {
   AlertTriangle,
   ArrowRight,
   BarChart3,
+  Calendar,
+  Camera,
   Check,
   CheckCircle2,
   ChevronDown,
   Clock,
   ClipboardCheck,
   FileDiff,
+  FileSearch,
   FileText,
+  Folder,
+  HardHat,
   HelpCircle,
   Landmark,
+  Lock,
   Mail,
   Moon,
+  Plug,
+  Rocket,
   ScrollText,
   ShieldCheck,
   Sparkles,
   Sun,
+  Table2,
   Target,
   TrendingUp,
   User,
@@ -145,9 +154,10 @@ const COPILOTS: Copilot[] = [
     actions: [
       "Extracts the question, drawings, and attachments automatically",
       "Looks up the relevant drawing sheets and spec sections",
+      "Searches historical RFIs for precedent answers",
       "Flags duplicate RFIs and out-of-scope requests",
       "Applies cost-code assignment and routes for approval",
-      "Writes a plain-language response summary",
+      "Drafts a response, recommended from how similar RFIs were decided",
     ],
     value: [
       "No manual drawing lookups",
@@ -161,12 +171,47 @@ const COPILOTS: Copilot[] = [
       { kind: "ok", text: "reading rfi_0417.pdf" },
       { kind: "ok", text: "matched subcontractor: Coastal Glazing LLC" },
       { kind: "ok", text: "drawing lookup: A-402 ✓ spec 08 44 00 ✓" },
-      { kind: "ok", text: "no duplicate RFI found" },
+      { kind: "ok", text: "no duplicate RFI found · 2 precedent RFIs found" },
       { kind: "ok", text: "cost-code assigned · response drafted" },
       { kind: "wait", text: "waiting on approval (Project Manager)" },
       { kind: "ok", text: "approved by A. Reyes" },
       { kind: "ok", text: "posted to Procore · confirmation sent" },
       { kind: "done", text: "done in 2m 41s" },
+    ],
+  },
+  {
+    group: "apar",
+    label: "RFIs / Submittals",
+    title: "Change Order Copilot",
+    goal: "Estimate the cost and schedule impact of a change request before anyone signs off.",
+    persona: "Project Manager",
+    approver: "Project Manager (PM) & Client Representative",
+    trigger: "A contractor or client submits a change request on Riverside Tower.",
+    actions: [
+      "Reads the change request and supporting documents automatically",
+      "Compares the change against the existing approved scope",
+      "Calculates the budget impact using current cost codes",
+      "Estimates the schedule delay against the master schedule",
+      "Generates an executive summary for approval",
+    ],
+    value: [
+      "Faster change order turnaround",
+      "More accurate cost and schedule impact estimates",
+      "Fewer disputes with subcontractors and owners",
+      "Better budget control",
+    ],
+    runtime: "3m 10s",
+    trace: [
+      { kind: "run", text: "connecting to Procore change order log…" },
+      { kind: "ok", text: "reading change request CO-2231" },
+      { kind: "ok", text: "matched subcontractor: Coastal Glazing LLC" },
+      { kind: "ok", text: "compared against approved scope — out-of-scope item confirmed" },
+      { kind: "ok", text: "budget impact calculated: $14,280" },
+      { kind: "ok", text: "schedule impact estimated: 3 days" },
+      { kind: "ok", text: "executive summary drafted" },
+      { kind: "wait", text: "waiting on approval (Project Manager)" },
+      { kind: "ok", text: "approved by A. Reyes · routed to Client Representative" },
+      { kind: "done", text: "done in 3m 10s" },
     ],
   },
   {
@@ -329,6 +374,108 @@ const COPILOTS: Copilot[] = [
       { kind: "wait", text: "waiting on approval (Project Executive)" },
       { kind: "ok", text: "approved by J. Lin" },
       { kind: "done", text: "done in 3m 05s" },
+    ],
+  },
+  {
+    group: "close",
+    label: "Billing & Job Costing",
+    title: "Subcontractor Invoice Verification Copilot",
+    goal: "Validate subcontractor invoices against the purchase order and completed work before payment.",
+    persona: "Project Accountant",
+    approver: "Finance Manager",
+    trigger: "An invoice is received from a subcontractor — e.g. Ironclad Steel Supply.",
+    actions: [
+      "Extracts line items and totals from the invoice",
+      "Matches the invoice against the purchase order",
+      "Compares billed quantities to completed work",
+      "Detects overbilling and quantity mismatches",
+      "Generates a discrepancy report for review",
+    ],
+    value: [
+      "Lower overbilling and fraud risk",
+      "Faster invoice-to-payment cycle",
+      "Improved subcontractor trust",
+      "A stronger, defensible audit trail",
+    ],
+    runtime: "2m 38s",
+    trace: [
+      { kind: "run", text: "connecting to email + Procore…" },
+      { kind: "ok", text: "invoice INV-3387 read · Ironclad Steel Supply" },
+      { kind: "ok", text: "matched to purchase order PO-4482" },
+      { kind: "ok", text: "billed quantities compared to completed work" },
+      { kind: "ok", text: "no overbilling detected" },
+      { kind: "ok", text: "discrepancy report generated" },
+      { kind: "wait", text: "waiting on approval (Project Accountant)" },
+      { kind: "ok", text: "approved · routed to Finance Manager for payment" },
+      { kind: "done", text: "done in 2m 38s" },
+    ],
+  },
+  {
+    group: "close",
+    label: "Billing & Job Costing",
+    title: "Project Progress Reporting Copilot",
+    goal: "Turn weekly progress, budget, open RFIs, and delays into one executive report for leadership.",
+    persona: "Construction Project Manager",
+    approver: "Construction Director",
+    trigger: "Weekly reporting schedule for Riverside Tower.",
+    actions: [
+      "Aggregates project KPIs — progress, budget, RFIs, and delays",
+      "Analyzes schedule variance against the baseline",
+      "Summarizes budget status against plan",
+      "Identifies project risks needing attention",
+      "Generates executive insights in plain language",
+    ],
+    value: [
+      "Improved leadership visibility",
+      "Faster weekly reporting cycle",
+      "Earlier risk identification",
+      "A standardized report every week",
+    ],
+    runtime: "3m 40s",
+    trace: [
+      { kind: "run", text: "connecting to Procore + Oracle Primavera P6…" },
+      { kind: "ok", text: "project progress pulled" },
+      { kind: "ok", text: "budget status summarized" },
+      { kind: "ok", text: "6 open RFIs pulled" },
+      { kind: "ok", text: "2 schedule delays identified" },
+      { kind: "ok", text: "executive report drafted" },
+      { kind: "wait", text: "waiting on approval (Construction Director)" },
+      { kind: "ok", text: "approved · PDF generated" },
+      { kind: "done", text: "done in 3m 40s" },
+    ],
+  },
+  {
+    group: "compliance",
+    label: "Compliance & Safety",
+    title: "Daily Site Report Copilot",
+    goal: "Turn the day's site emails, photos, and task updates into a finished daily progress report.",
+    persona: "Site Engineer",
+    approver: "Project Manager (PM)",
+    trigger: "End of workday on Riverside Tower.",
+    actions: [
+      "Collects site emails and photos from the day",
+      "Summarizes work completed against the schedule",
+      "Analyzes progress and identifies emerging delays",
+      "Summarizes equipment usage and status",
+      "Highlights safety issues for review",
+    ],
+    value: [
+      "Time saved for site engineers every day",
+      "Consistent, complete daily reporting",
+      "Earlier visibility into delays and risk",
+      "Better safety tracking across the site",
+    ],
+    runtime: "2m 05s",
+    trace: [
+      { kind: "run", text: "connecting to email + site photos…" },
+      { kind: "ok", text: "12 site photos + 3 emails collected" },
+      { kind: "ok", text: "work completed summarized against schedule" },
+      { kind: "ok", text: "1 potential delay identified — concrete pour" },
+      { kind: "ok", text: "equipment usage summarized" },
+      { kind: "ok", text: "no safety issues flagged" },
+      { kind: "wait", text: "waiting on approval (Project Manager)" },
+      { kind: "ok", text: "approved · report distributed" },
+      { kind: "done", text: "done in 2m 05s" },
     ],
   },
   {
@@ -509,12 +656,14 @@ function IndexContent() {
     >
       <Nav onLogin={() => setAuthOpen(true)} onBookDemo={onBookDemo} />
       <Hero onBookDemo={onBookDemo} />
+      <ProblemSection />
       <FeatureSpotlight />
       <IntegrationCatalog />
       <CopilotLibrary />
       <CoreDiagram />
       <WorkflowSection content={CLOSE_WORKFLOW} />
       <PlatformGrid />
+      <WhyChooseUs />
       <CTASection onBookDemo={onBookDemo} />
       <Footer />
       {authOpen && (
@@ -787,6 +936,94 @@ function RiskOverviewCard() {
         </div>
       </div>
     </div>
+  );
+}
+
+// ---------------- The problem ----------------
+
+// Illustrative figures (not tied to a live query) — the point is the shape of
+// the problem, not a specific cited study.
+const PROBLEM_STATS: { value: string; label: string }[] = [
+  { value: "38%", label: "of a PM's week spent on document coordination and status chasing." },
+  { value: "70%", label: "of large projects finish over budget or behind schedule." },
+  { value: "6", label: "disconnected systems hold the data needed for one decision." },
+];
+
+const PROBLEM_SYSTEMS: { icon: LucideIcon; label: string }[] = [
+  { icon: Mail, label: "Email" },
+  { icon: FileText, label: "PDFs" },
+  { icon: Folder, label: "Procore" },
+  { icon: Calendar, label: "P6" },
+  { icon: Table2, label: "Spreadsheets" },
+  { icon: Camera, label: "Photos" },
+];
+
+function ProblemSection() {
+  const heading = useInView<HTMLDivElement>();
+  const stats = useInView<HTMLDivElement>();
+  const strip = useInView<HTMLDivElement>();
+
+  return (
+    <section className="border-b border-border/60 py-20">
+      <div className="mx-auto max-w-7xl px-5">
+        <div ref={heading.ref} className={cn("reveal max-w-3xl", heading.inView && "in-view")}>
+          <span className="font-mono text-xs uppercase tracking-wider text-primary">
+            The problem
+          </span>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
+            Construction data is everywhere. The decisions that depend on it are late.
+          </h2>
+          <p className="mt-5 text-base text-muted-foreground md:text-lg">
+            A single project generates thousands of RFIs, submittals, change orders, and daily
+            reports across email, PDFs, and a dozen systems. By the time a delay or cost overrun
+            shows up in a report, the window to act on it has usually closed. Project teams spend
+            their time reconciling versions instead of managing risk.
+          </p>
+        </div>
+
+        <div ref={stats.ref} className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {PROBLEM_STATS.map((s, i) => (
+            <div
+              key={s.label}
+              className={cn(
+                "reveal rounded-2xl border border-border bg-surface p-6",
+                stats.inView && "in-view",
+              )}
+              style={{ transitionDelay: `${i * 70}ms` }}
+            >
+              <div className="text-3xl font-bold tracking-tight text-foreground">{s.value}</div>
+              <p className="mt-2 text-sm text-muted-foreground">{s.label}</p>
+            </div>
+          ))}
+        </div>
+
+        <div
+          ref={strip.ref}
+          className={cn(
+            "reveal mt-8 rounded-2xl border border-border bg-surface-2/60 p-6",
+            strip.inView && "in-view",
+          )}
+        >
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+            {PROBLEM_SYSTEMS.map((s) => {
+              const Icon = s.icon;
+              return (
+                <div
+                  key={s.label}
+                  className="flex flex-col items-center gap-2 rounded-xl border border-border bg-background/60 px-3 py-4 text-center"
+                >
+                  <Icon className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-xs font-medium text-foreground">{s.label}</span>
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-4 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            No single source of truth
+          </p>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -1886,6 +2123,220 @@ function PlatformGrid() {
         </div>
       </div>
     </section>
+  );
+}
+
+// ---------------- Why choose us ----------------
+
+type WhyUsCard = { icon: LucideIcon; title: string; blurb: string; detail: string; points: string[] };
+
+const WHY_US: WhyUsCard[] = [
+  {
+    icon: Plug,
+    title: "Works across every system you already use",
+    blurb:
+      "Not locked into one PM tool — Procore, Autodesk Construction Cloud, Buildertrend, email, and more, together.",
+    detail:
+      "Most point tools only see the data inside their own walls. This platform reads and writes across every system your project already runs on, so a copilot can cross-reference a drawing in one system with a cost code in another — without you exporting a single CSV.",
+    points: [
+      "Two-way sync with Procore, Autodesk Construction Cloud, and Buildertrend",
+      "Email, Teams, and SharePoint read natively",
+      "No rip-and-replace of your existing stack",
+      "New connectors added on request",
+    ],
+  },
+  {
+    icon: ShieldCheck,
+    title: "A human approves every action",
+    blurb: "Nothing posts to your systems of record without sign-off — full audit trail on every step.",
+    detail:
+      "Every copilot drafts, checks, and stops. A named approver reviews the draft before anything writes back to Procore, your ledger, or your inbox, and every action is logged with who approved what and when.",
+    points: [
+      "Configurable approval routing by role",
+      "Nothing posts without a human decision",
+      "Every extraction and edit is logged",
+      "One-click trace back to the source document",
+    ],
+  },
+  {
+    icon: HardHat,
+    title: "Built for construction, not adapted from generic AI",
+    blurb:
+      "Cost codes, RFIs, submittals, and lien waivers are first-class concepts — not bolted on after the fact.",
+    detail:
+      "Generic AI assistants don't know what a ball-in-court field is or why a lien waiver blocks a payment. This platform's copilots are built around construction's own workflows and terminology from day one.",
+    points: [
+      "CSI cost codes native to every workflow",
+      "RFI, submittal, and change-order concepts built in",
+      "Understands ball-in-court and retainage",
+      "Speaks the language your field teams already use",
+    ],
+  },
+  {
+    icon: Rocket,
+    title: "Live in weeks, not quarters",
+    blurb:
+      "Connect your systems, pick your first copilot, and start reviewing drafted work inside your first project cycle.",
+    detail:
+      "There's no multi-quarter implementation. Authenticate your systems, choose the copilots that matter most to your team, and start with one project before rolling out further — most teams see their first drafted response within days.",
+    points: [
+      "Authenticate your systems in one sitting",
+      "Start with a single project or copilot",
+      "No data migration required to begin",
+      "Expand copilot-by-copilot as you gain confidence",
+    ],
+  },
+  {
+    icon: FileSearch,
+    title: "Grounded in your own project data",
+    blurb: "Answers cite your drawings, specs, and schedules — not a generic guess.",
+    detail:
+      "Every draft a copilot produces is grounded in your project's own documents. Where a response cites a spec section or drawing sheet, it's because the copilot actually read that document — not because a model guessed.",
+    points: [
+      "Every answer traceable to a source document",
+      "Confidence scoring on every extracted field",
+      "Low-confidence extractions flagged for review",
+      "No answers invented from outside your project",
+    ],
+  },
+  {
+    icon: Lock,
+    title: "Enterprise-grade security",
+    blurb: "SSO, role-based access, and encryption — reviewed the way your IT team expects.",
+    detail:
+      "Built to pass a real vendor security review: single sign-on, role-based access control, encryption in transit and at rest, and a complete audit trail available for export.",
+    points: [
+      "SSO and role-based access control",
+      "Encryption in transit and at rest",
+      "Exportable audit trail",
+      "Data residency options on enterprise plans",
+    ],
+  },
+];
+
+function WhyChooseUs() {
+  const [selected, setSelected] = useState<WhyUsCard | null>(null);
+  const heading = useInView<HTMLDivElement>();
+  const grid = useInView<HTMLDivElement>();
+
+  return (
+    <section className="border-b border-border/60 bg-surface-2/40 py-20">
+      <div className="mx-auto max-w-7xl px-5">
+        <div ref={heading.ref} className={cn("reveal mb-12 max-w-2xl", heading.inView && "in-view")}>
+          <span className="font-mono text-xs uppercase tracking-wider text-primary">
+            Why choose us
+          </span>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
+            Six reasons project teams pick this over the status quo.
+          </h2>
+          <p className="mt-3 text-sm text-muted-foreground md:text-base">
+            Click a card for the full picture.
+          </p>
+        </div>
+        <div ref={grid.ref} className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {WHY_US.map((c, i) => {
+            const Icon = c.icon;
+            return (
+              <button
+                key={c.title}
+                type="button"
+                onClick={() => setSelected(c)}
+                aria-label={`Learn more: ${c.title}`}
+                className={cn(
+                  "reveal group flex h-full flex-col rounded-xl border border-border bg-surface p-5 text-left transition duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 md:p-6",
+                  grid.inView && "in-view",
+                )}
+                style={{ transitionDelay: `${i * 60}ms` }}
+              >
+                <span className="mb-4 grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/15 transition group-hover:bg-primary group-hover:text-primary-foreground group-hover:ring-primary">
+                  <Icon className="h-5 w-5" />
+                </span>
+                <div className="text-base font-semibold md:text-[17px]">{c.title}</div>
+                <p className="mt-1.5 flex-1 text-sm leading-relaxed text-muted-foreground">
+                  {c.blurb}
+                </p>
+                <span className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-primary opacity-0 transition group-hover:opacity-100">
+                  Learn more
+                  <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {selected && <WhyUsModal card={selected} onClose={() => setSelected(null)} />}
+    </section>
+  );
+}
+
+function WhyUsModal({ card, onClose }: { card: WhyUsCard; onClose: () => void }) {
+  const Icon = card.icon;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-8 backdrop-blur-sm"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="whyus-title"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="nice-scroll max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-surface shadow-2xl"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-border p-6">
+          <div className="flex items-center gap-4">
+            <span className="brand-gradient grid h-12 w-12 shrink-0 place-items-center rounded-xl text-primary-foreground shadow-md shadow-primary/25">
+              <Icon className="h-6 w-6" />
+            </span>
+            <div>
+              <span className="font-mono text-[10px] font-medium uppercase tracking-wider text-primary">
+                Why choose us
+              </span>
+              <h3 id="whyus-title" className="mt-0.5 text-xl font-semibold tracking-tight">
+                {card.title}
+              </h3>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="shrink-0 rounded-lg p-2 text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-6 p-6">
+          <p className="text-sm leading-relaxed text-foreground/90">{card.detail}</p>
+          <div>
+            <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+              What this means for you
+            </div>
+            <ul className="space-y-2">
+              {card.points.map((p) => (
+                <li key={p} className="flex gap-2.5 text-sm text-foreground/90">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  {p}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
