@@ -680,7 +680,7 @@ function Nav({ onLogin, onBookDemo }: { onLogin: () => void; onBookDemo: () => v
     <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3.5">
         <a href="#" className="flex items-center">
-          <img src="/site_logo.png" alt="Construct AI" className="ml-2 h-14 w-auto object-contain" />
+          <img src="/logo_const.png" alt="Construct AI" className="ml-2 h-16 w-auto object-contain" />
         </a>
         <nav className="hidden items-center gap-8 text-sm font-medium text-muted-foreground md:flex">
           <a href="#copilots" className="transition hover:text-foreground">
@@ -2408,7 +2408,7 @@ function Footer() {
         <div className="grid gap-10 md:grid-cols-[1.5fr_repeat(3,1fr)]">
           <div>
             <div className="flex items-center">
-              <img src="/site_logo.png" alt="Construct AI" className="h-14 w-auto object-contain" />
+              <img src="/logo_const.png" alt="Construct AI" className="h-16 w-auto object-contain" />
             </div>
             <p className="mt-4 max-w-xs text-sm text-muted-foreground">
               The AI operating system for construction — RFIs, submittals, job costing, and
