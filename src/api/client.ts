@@ -1480,6 +1480,43 @@ export function startWorkflow(
   });
 }
 
+/** Live view of a single workflow run — polled while a run is in flight. Run status
+ *  is "running" | "awaiting_approval" | "completed" | "rejected"; step status is
+ *  "completed" | "awaiting_approval" | "running" | "skipped" | "pending". */
+export interface WorkflowRunView {
+  run_id: string;
+  pack_key: string;
+  workflow_key: string;
+  name: string;
+  status: string;
+  current_step: string | null;
+  steps: { id: string; type: string; name: string; status: string }[];
+  summary: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Fetch the live detail of a workflow run (poll this while a run is in flight). */
+export function getRun(runId: string): Promise<WorkflowRunView> {
+  return request<WorkflowRunView>(`/api/workflows/packs/runs/${runId}`);
+}
+
+/** Approve the pending human gate of a run; the remaining steps then execute. */
+export function approveRun(runId: string, comment = ""): Promise<unknown> {
+  return request(`/api/workflows/packs/runs/${runId}/approve`, {
+    method: "POST",
+    body: JSON.stringify({ comment }),
+  });
+}
+
+/** Reject the pending human gate of a run. */
+export function rejectRun(runId: string, comment = ""): Promise<unknown> {
+  return request(`/api/workflows/packs/runs/${runId}/reject`, {
+    method: "POST",
+    body: JSON.stringify({ comment }),
+  });
+}
+
 export function getWorkflow(id: string): Promise<WorkflowItem> {
   if (DUMMY_DATA) {
     const wf = DUMMY_WORKFLOWS.find((w) => w.workflow_id === id);
@@ -1682,6 +1719,9 @@ export const api = {
   updateWorkflowDefinition,
   deleteWorkflowDefinition,
   startWorkflow,
+  getRun,
+  approveRun,
+  rejectRun,
   getWorkflow,
   startDocumentReview,
   approveWorkflow,
