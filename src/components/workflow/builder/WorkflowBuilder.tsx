@@ -6,7 +6,6 @@ import {
   ReactFlowProvider,
   Background,
   Controls,
-  MiniMap,
   addEdge,
   useNodesState,
   useEdgesState,
@@ -316,7 +315,6 @@ function BuilderInner({ existingKey, initial }: WorkflowBuilderProps) {
           >
             <Background />
             <Controls />
-            <MiniMap pannable zoomable className="!bg-card" />
           </ReactFlow>
         </div>
 

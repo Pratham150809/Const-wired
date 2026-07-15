@@ -100,6 +100,11 @@ function Workflows() {
                   </span>
                 )}
               </div>
+              {d.description && (
+                <p className="mb-2 max-w-3xl text-xs leading-relaxed text-muted-foreground">
+                  {d.description}
+                </p>
+              )}
               <WorkflowFlow def={d} />
             </div>
           ))}
