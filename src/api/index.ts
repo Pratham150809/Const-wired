@@ -4,8 +4,10 @@ export * from "./client";
 
 // Query hooks
 export * from "./query/useWorkflows";
+export * from "./query/useWorkflowDefinitions";
 export * from "./query/useDocuments";
 export * from "./query/useConnectors";
+export * from "./query/useConnectorCatalog";
 export * from "./query/useSystemHealth";
 export * from "./query/useTenant";
 export * from "./query/useUsers";
@@ -16,3 +18,6 @@ export * from "./mutation/useAssignRole";
 export * from "./mutation/useUploadDocument";
 export * from "./mutation/useDecideWorkflow";
 export * from "./mutation/useRetrieveDocuments";
+export * from "./mutation/useSaveWorkflowDefinition";
+export * from "./mutation/useDeleteWorkflowDefinition";
+export * from "./mutation/useStartWorkflow";

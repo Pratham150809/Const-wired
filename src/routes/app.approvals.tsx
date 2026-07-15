@@ -1,46 +1,38 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CheckCircle2, ClipboardCheck, Clock, ShieldCheck, XCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
-import { decideApprovalItem, listApprovalItems } from "../api";
-import type { ApprovalItem } from "../api";
+import { useWorkflows, useDecideWorkflow } from "../api";
+import type { WorkflowItem } from "../api";
+import { EmptyState, ErrorState, LoadingState } from "../components/common/states";
 import { useSession } from "../lib/session";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/app/approvals")({ component: Approvals });
 
 /* ─────────────────────────  Data  ───────────────────────── */
-// Data now lives in api/client.ts, so an item drafted by a workflow triggered
-// from the AI Assistant shows up in this queue too.
+// Approvals are workflows awaiting a human decision, derived from the live
+// workflows list so an item drafted by a workflow triggered from the AI
+// Assistant shows up in this queue too.
 
 type Decision = "approved" | "rejected";
-
-const PRIORITY_META: Record<ApprovalItem["priority"], { label: string; cls: string }> = {
-  high: { label: "High", cls: "bg-destructive/10 border-destructive/30 text-destructive" },
-  medium: { label: "Medium", cls: "bg-amber-500/10 border-amber-500/30 text-amber-500" },
-  low: { label: "Low", cls: "bg-muted border-border text-muted-foreground" },
-};
 
 /* ─────────────────────────  Page  ───────────────────────── */
 
 function Approvals() {
   const { isManager } = useSession();
-  // Starts empty on the server (and on first client render, to match) — the
-  // localStorage-backed data loads client-only in the effect below, avoiding
-  // a hydration mismatch if an item was added since the last SSR pass.
-  const [items, setItems] = useState<ApprovalItem[]>([]);
-  const [decided, setDecided] = useState<{ item: ApprovalItem; decision: Decision }[]>([]);
+  const workflows = useWorkflows();
+  const decide = useDecideWorkflow();
 
-  useEffect(() => {
-    setItems(listApprovalItems());
-  }, []);
-
-  const decide = (item: ApprovalItem, decision: Decision) => {
-    decideApprovalItem(item.id, decision);
-    setItems((cur) => cur.filter((i) => i.id !== item.id));
-    setDecided((cur) => [{ item, decision }, ...cur]);
-  };
+  const all = workflows.data ?? [];
+  const pending = all.filter((w) => !w.decision && /pending|await|review/i.test(w.status));
+  const decided = all
+    .filter((w) => w.decision)
+    .map((w) => ({
+      w,
+      decision: (w.decision === "approved" ? "approved" : "rejected") as Decision,
+    }));
 
   return (
     <div className="space-y-7">
@@ -61,7 +53,7 @@ function Approvals() {
 
       {/* Summary tiles */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Tile icon={Clock} label="Pending" value={items.length} tone="text-amber-500" />
+        <Tile icon={Clock} label="Pending" value={pending.length} tone="text-amber-500" />
         <Tile
           icon={CheckCircle2}
           label="Approved today"
@@ -83,20 +75,24 @@ function Approvals() {
       )}
 
       {/* Queue */}
-      {items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border py-16 text-center">
-          <div className="grid h-11 w-11 place-items-center rounded-full bg-emerald-500/10 text-emerald-500">
-            <CheckCircle2 className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-foreground">You're all caught up</p>
-            <p className="mt-1 text-sm text-muted-foreground">Nothing is waiting for approval.</p>
-          </div>
-        </div>
+      {workflows.isLoading ? (
+        <LoadingState />
+      ) : workflows.isError ? (
+        <ErrorState onRetry={() => workflows.refetch()} />
+      ) : pending.length === 0 ? (
+        <EmptyState icon={CheckCircle2} title="No pending approvals" />
       ) : (
         <div className="grid gap-3">
-          {items.map((item) => (
-            <ApprovalCard key={item.id} item={item} canDecide={isManager} onDecide={decide} />
+          {pending.map((w) => (
+            <ApprovalCard
+              key={w.workflow_id}
+              w={w}
+              canDecide={isManager}
+              isPending={decide.isPending}
+              onDecide={(approve, comment) =>
+                decide.mutate({ workflowId: w.workflow_id, approve, comment })
+              }
+            />
           ))}
         </div>
       )}
@@ -109,12 +105,12 @@ function Approvals() {
             Recently decided
           </h2>
           <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
-            {decided.map(({ item, decision }, i) => (
-              <li key={i} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+            {decided.map(({ w, decision }) => (
+              <li key={w.workflow_id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
                 <div className="min-w-0">
-                  <div className="truncate font-medium text-foreground">{item.title}</div>
+                  <div className="truncate font-medium text-foreground">{w.summary ?? "—"}</div>
                   <div className="text-xs text-muted-foreground">
-                    {item.type} · {item.amount}
+                    {w.type} · —
                   </div>
                 </div>
                 <span
@@ -166,16 +162,17 @@ function Tile({
 }
 
 function ApprovalCard({
-  item,
+  w,
   canDecide,
+  isPending,
   onDecide,
 }: {
-  item: ApprovalItem;
+  w: WorkflowItem;
   canDecide: boolean;
-  onDecide: (item: ApprovalItem, decision: Decision) => void;
+  isPending: boolean;
+  onDecide: (approve: boolean, comment: string) => void;
 }) {
   const [comment, setComment] = useState("");
-  const pr = PRIORITY_META[item.priority];
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
@@ -183,30 +180,25 @@ function ApprovalCard({
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-medium uppercase tracking-wider text-primary">
-              {item.type}
+              {w.type}
             </span>
-            <span
-              className={cn(
-                "rounded-full border px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider",
-                pr.cls,
-              )}
-            >
-              {pr.label}
+            <span className="rounded-full border border-border bg-muted px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
+              —
             </span>
           </div>
-          <div className="mt-1 text-base font-semibold text-foreground">{item.title}</div>
+          <div className="mt-1 text-base font-semibold text-foreground">{w.summary ?? "—"}</div>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span className="font-mono text-sm font-semibold text-foreground">{item.amount}</span>
+            <span className="font-mono text-sm font-semibold text-foreground">—</span>
             <span>·</span>
-            <span>Requested by {item.requester}</span>
+            <span>Requested by —</span>
             <span>·</span>
             <span className="flex items-center gap-1">
-              <Clock className="h-3 w-3" /> waiting {item.waited}
+              <Clock className="h-3 w-3" /> {new Date(w.created_at).toLocaleString()}
             </span>
           </div>
         </div>
         <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-500">
-          <Clock className="h-3 w-3" /> Awaiting {item.approver}
+          <Clock className="h-3 w-3" /> {w.status}
         </span>
       </div>
 
@@ -215,25 +207,14 @@ function ApprovalCard({
         <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           <ShieldCheck className="h-3.5 w-3.5 text-primary" /> AI summary
         </div>
-        <p>{item.summary}</p>
+        <p>{w.summary ?? "—"}</p>
       </div>
 
       {/* Control checks */}
       <div className="mb-4 flex flex-wrap gap-2">
-        {item.checks.map((c) => (
-          <span
-            key={c.label}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium",
-              c.ok
-                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
-                : "border-amber-500/30 bg-amber-500/10 text-amber-500",
-            )}
-          >
-            {c.ok ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
-            {c.label}
-          </span>
-        ))}
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+          —
+        </span>
       </div>
 
       {canDecide ? (
@@ -246,21 +227,23 @@ function ApprovalCard({
           />
           <div className="flex gap-2">
             <button
-              onClick={() => onDecide(item, "approved")}
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+              onClick={() => onDecide(true, comment)}
+              disabled={isPending}
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
             >
               <CheckCircle2 className="h-4 w-4" /> Approve
             </button>
             <button
-              onClick={() => onDecide(item, "rejected")}
-              className="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 bg-destructive/10 px-3.5 py-1.5 text-sm font-semibold text-destructive transition hover:bg-destructive/20"
+              onClick={() => onDecide(false, comment)}
+              disabled={isPending}
+              className="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 bg-destructive/10 px-3.5 py-1.5 text-sm font-semibold text-destructive transition hover:bg-destructive/20 disabled:opacity-60"
             >
               <XCircle className="h-4 w-4" /> Reject
             </button>
           </div>
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground">Awaiting {item.approver} sign-off.</p>
+        <p className="text-xs text-muted-foreground">Awaiting sign-off.</p>
       )}
     </div>
   );

@@ -17,7 +17,7 @@ const TOKEN_KEY = "aios.access_token";
 // Temporary client-side auth: while the backend OAuth/registration flow is not
 // wired, sign up and log in are served entirely from localStorage. Flip this to
 // `false` to restore the real gateway-backed auth below.
-const DUMMY_AUTH = true;
+const DUMMY_AUTH = false;
 const USERS_KEY = "aios.dummy_users";
 const SESSION_KEY = "aios.dummy_session";
 
@@ -53,6 +53,9 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     ...init,
     headers: {
       "Content-Type": "application/json",
+      // Skip ngrok free-tier's browser-warning interstitial (which strips CORS headers)
+      // when the gateway is exposed via an ngrok URL. Harmless on any other host.
+      "ngrok-skip-browser-warning": "true",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init.headers ?? {}),
     },
@@ -120,6 +123,9 @@ export interface ConnectorItem {
   kind: string;
   enabled: boolean;
   tool_count: number;
+  /** Present on the full catalogue (`?all=true`): whether the tenant is entitled
+   *  to use this connector. Absent (undefined) on the entitled-only default list. */
+  entitled?: boolean;
 }
 
 export interface AuditEvent {
@@ -246,7 +252,24 @@ export async function login(email: string, password: string): Promise<Me> {
 
 export async function signup(input: SignupInput): Promise<Me> {
   if (DUMMY_AUTH) return dummySignup(input);
-  throw new ApiError("Self-serve signup is not available yet.", 501);
+  // Real gateway signup. This is the Construction workspace, so every account created
+  // here lands in the "construction" industry (login_source). The `company` field is
+  // not used — self-service signups join the shared demo tenant (see backend D10).
+  const parts = input.name.trim().split(/\s+/);
+  const first_name = parts[0] || input.email.split("@")[0];
+  const last_name = parts.slice(1).join(" ") || first_name;
+  const token = await request<TokenResponse>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify({
+      email: input.email,
+      password: input.password,
+      first_name,
+      last_name,
+      login_source: "construction",
+    }),
+  });
+  setToken(token.access_token);
+  return getMe();
 }
 
 export function getMe(): Promise<Me> {
@@ -258,7 +281,7 @@ export function getMe(): Promise<Me> {
 // Same idea as DUMMY_AUTH above: while these backend endpoints aren't wired,
 // serve typed responses from localStorage so every screen is clickable and
 // stateful standalone. Flip to `false` to restore the real gateway calls below.
-const DUMMY_DATA = true;
+const DUMMY_DATA = false;
 const DOCS_KEY = "aios.dummy_documents";
 const AUDIT_KEY = "aios.dummy_audit";
 const DIRECTORY_KEY = "aios.dummy_directory";
@@ -1222,6 +1245,7 @@ export function chat(input: {
   session_id?: string;
   use_rag?: boolean;
   model?: string;
+  workspace?: string; // active industry workspace, so the assistant is workspace-aware
 }): Promise<ChatReply> {
   if (DUMMY_DATA) {
     return Promise.resolve({
@@ -1242,7 +1266,8 @@ export async function* chatStream(input: {
   session_id?: string;
   use_rag?: boolean;
   model?: string;
-}): AsyncGenerator<{ delta?: string; session_id?: string; model?: string }> {
+  workspace?: string; // active industry workspace, so the assistant is workspace-aware
+}): AsyncGenerator<{ delta?: string; session_id?: string; model?: string; error?: string }> {
   if (DUMMY_DATA) {
     const sessionId = input.session_id ?? `sess_${Date.now().toString(36)}`;
     yield { session_id: sessionId, model: "dummy-assistant" };
@@ -1264,6 +1289,7 @@ export async function* chatStream(input: {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
       ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
     },
     body: JSON.stringify(input),
@@ -1311,7 +1337,10 @@ export async function uploadDocument(file: File): Promise<DocumentItem> {
   form.append("file", file);
   const resp = await fetch(`${API_URL}/api/knowledge/documents`, {
     method: "POST",
-    headers: { ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}) },
+    headers: {
+      "ngrok-skip-browser-warning": "true",
+      ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
+    },
     body: form, // browser sets multipart boundary
   });
   if (!resp.ok) throw new ApiError("Upload failed", resp.status);
@@ -1373,6 +1402,72 @@ export function listWorkflows(): Promise<WorkflowItem[]> {
   return request<WorkflowItem[]>("/api/workflows/workflows");
 }
 
+export interface WorkflowDefinitionSpec {
+  pack_key: string;
+  workflow_key: string;
+  name: string;
+  trigger: string;
+  connectors_required: string[];
+  steps: { id: string; type: string; name: string }[];
+  latest_status?: string | null;
+  latest_run_id?: string | null;
+  /** "seed" = shipped template, "user" = builder-authored (pack_key === "custom"). */
+  source?: "seed" | "user";
+}
+
+export function listWorkflowDefinitions(): Promise<WorkflowDefinitionSpec[]> {
+  if (DUMMY_DATA) return Promise.resolve([]);
+  return request<WorkflowDefinitionSpec[]>("/api/workflows/packs/definitions");
+}
+
+/** Create/upsert a user workflow definition. `pack` is forced to "custom" server-side;
+ *  the definition's `key` is the workflow id (upsert by key). */
+export function createWorkflowDefinition(definition: unknown): Promise<WorkflowDefinitionSpec> {
+  return request<WorkflowDefinitionSpec>("/api/workflows/packs/definitions", {
+    method: "POST",
+    body: JSON.stringify({ definition }),
+  });
+}
+
+/** Update an existing user workflow definition (user flows only). */
+export function updateWorkflowDefinition(
+  key: string,
+  definition: unknown,
+): Promise<WorkflowDefinitionSpec> {
+  return request<WorkflowDefinitionSpec>(`/api/workflows/packs/definitions/${key}`, {
+    method: "PUT",
+    body: JSON.stringify({ definition }),
+  });
+}
+
+/** Delete a user workflow definition. */
+export function deleteWorkflowDefinition(key: string): Promise<unknown> {
+  return request(`/api/workflows/packs/definitions/${key}`, { method: "DELETE" });
+}
+
+/** The FULL stored WorkflowDefinition JSON (with per-step config) — needed to edit a flow
+ *  in the builder (the list spec carries only id/type/name per step). Defaults to the
+ *  reserved "custom" pack (user flows). */
+export function getWorkflowDefinition(
+  key: string,
+  packKey = "custom",
+): Promise<Record<string, unknown>> {
+  const q = encodeURIComponent(packKey);
+  return request<Record<string, unknown>>(`/api/workflows/packs/definitions/${key}?pack_key=${q}`);
+}
+
+/** Start a run of a workflow definition by key. */
+export function startWorkflow(
+  packKey: string,
+  workflowKey: string,
+  inputs?: Record<string, unknown>,
+): Promise<{ run_id?: string; status?: string }> {
+  return request(`/api/workflows/packs/${workflowKey}/run`, {
+    method: "POST",
+    body: JSON.stringify({ pack_key: packKey, inputs: inputs ?? {} }),
+  });
+}
+
 export function getWorkflow(id: string): Promise<WorkflowItem> {
   if (DUMMY_DATA) {
     const wf = DUMMY_WORKFLOWS.find((w) => w.workflow_id === id);
@@ -1426,6 +1521,28 @@ const DUMMY_CONNECTORS: ConnectorItem[] = [
 export function listConnectors(): Promise<ConnectorItem[]> {
   if (DUMMY_DATA) return Promise.resolve(DUMMY_CONNECTORS);
   return request<ConnectorItem[]>("/api/connectors/connectors");
+}
+
+/** Full connector catalogue with an `entitled` flag on each item (vs. the default
+ *  entitled-only list). Used by the workflow builder palette. */
+export function listConnectorCatalog(): Promise<ConnectorItem[]> {
+  return request<ConnectorItem[]>("/api/connectors/connectors?all=true");
+}
+
+export interface ConnectSession {
+  status: "ok" | "sandbox";
+  session_token?: string;
+  provider?: string;
+  message?: string;
+}
+
+/** Create a Nango Connect session so the current tenant's user can authorize the provider
+ * from inside our app (feed session_token to Nango's Connect UI). */
+export function getConnectSession(key: string): Promise<ConnectSession> {
+  if (DUMMY_DATA) return Promise.resolve({ status: "sandbox", message: "Dummy data mode." });
+  return request<ConnectSession>(`/api/connectors/connectors/${key}/connect-session`, {
+    method: "POST",
+  });
 }
 
 export function configureConnector(
@@ -1505,12 +1622,20 @@ export const api = {
   uploadDocument,
   retrieve,
   listWorkflows,
+  listWorkflowDefinitions,
+  getWorkflowDefinition,
+  createWorkflowDefinition,
+  updateWorkflowDefinition,
+  deleteWorkflowDefinition,
+  startWorkflow,
   getWorkflow,
   startDocumentReview,
   approveWorkflow,
   rejectWorkflow,
   listConnectors,
+  listConnectorCatalog,
   configureConnector,
+  getConnectSession,
   listAuditEvents,
   getTenant,
   updateTenantSettings,

@@ -58,14 +58,22 @@ function Assistant() {
       { role: "assistant", content: "" },
     ]);
     setStreaming(true);
+    let failed: string | null = null;
     try {
+      let got = false;
       for await (const chunk of api.chatStream({
         message,
         session_id: sessionId.current,
         use_rag: useRag,
+        workspace: "construction", // this is the Construction workspace
       })) {
         if (chunk.session_id) sessionId.current = chunk.session_id;
+        if (chunk.error) {
+          failed = chunk.error; // backend signalled a failure (e.g. LLM unavailable)
+          break;
+        }
         if (chunk.delta) {
+          got = true;
           setMessages((m) => {
             const copy = [...m];
             copy[copy.length - 1] = {
@@ -76,13 +84,16 @@ function Assistant() {
           });
         }
       }
+      if (!failed && !got) failed = "The assistant didn't return a response. Please try again.";
     } catch {
-      setError(
-        "The assistant is unavailable. An LLM provider key may not be configured on the backend.",
-      );
-      setMessages((m) => m.slice(0, -1)); // drop the empty assistant bubble
+      failed =
+        "The assistant is unavailable. An LLM provider key may not be configured on the backend.";
     } finally {
       setStreaming(false);
+    }
+    if (failed) {
+      setError(failed);
+      setMessages((m) => m.slice(0, -1)); // drop the empty assistant bubble
     }
   };
 

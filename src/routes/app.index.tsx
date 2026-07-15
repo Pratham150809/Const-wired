@@ -7,14 +7,13 @@ import {
   Clock,
   FileText,
   Landmark,
-  ReceiptText,
   TrendingUp,
   Workflow,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useEffect, useState } from "react";
 
-import { listApprovalItems, listWorkflowRuns } from "../api";
+import { useAuditEvents, useDocuments, useSystemHealth, useWorkflows } from "../api";
+import { EmptyState, LoadingState } from "../components/common/states";
 import { useSession } from "../lib/session";
 import { cn } from "../lib/utils";
 
@@ -59,31 +58,13 @@ const CLOSE_TASKS: { label: string; done: number; total: number }[] = [
   { label: "WIP schedule review", done: 4, total: 9 },
 ];
 
-const RECENT_DOCS: { name: string; type: string; status: string; tone: Tone; date: string; icon: LucideIcon }[] = [
-  { name: "RFI #RFI-2214 — Apex Building Materials", type: "RFI", status: "Needs Approval", tone: "warn", date: "Jul 08", icon: ReceiptText },
-  { name: "Draw Statement — Mercury Bank (Riverside Tower, Jun)", type: "Statement", status: "Reconciling", tone: "neutral", date: "Jul 01", icon: Landmark },
-  { name: "Submittal #SUB-4482 — Ironclad Steel Supply", type: "Submittal", status: "Approved", tone: "good", date: "Jun 22", icon: ClipboardCheck },
-  { name: "Change Order #CO-2231 — Coastal Glazing LLC", type: "Change Order", status: "Duplicate Flagged", tone: "bad", date: "Jul 09", icon: ReceiptText },
-  { name: "Daily Log — Riverside Tower Site Safety Walk", type: "Daily Log", status: "Needs Approval", tone: "warn", date: "Jul 06", icon: FileText },
-];
-
-const ACTIVITY: { action: string; actor: string; detail: string; time: string }[] = [
-  { action: "RFI response posted", actor: "RFI Copilot", detail: "RFI-2214 → Procore", time: "10:42" },
-  { action: "Approval granted", actor: "A. Reyes", detail: "Draw Reconciliation · June", time: "10:15" },
-  { action: "Duplicate flagged", actor: "RFI Copilot", detail: "Change Order CO-2231", time: "09:58" },
-  { action: "Bank feed synced", actor: "System", detail: "Mercury ••4102", time: "09:30" },
-  { action: "Daily log reviewed", actor: "Safety Copilot", detail: "Riverside Tower Site Safety Walk", time: "09:12" },
-  { action: "Subcontractor onboarded", actor: "R. Danforth", detail: "Ironclad Steel Supply · COI verified", time: "08:47" },
-];
-
-const SERVICES: { name: string; status: string; tone: Tone }[] = [
-  { name: "Procore", status: "operational", tone: "good" },
-  { name: "Mercury Bank", status: "operational", tone: "good" },
-  { name: "Document AI", status: "operational", tone: "good" },
-  { name: "Orchestrator", status: "operational", tone: "good" },
-  { name: "Autodesk Construction Cloud", status: "degraded", tone: "warn" },
-  { name: "Audit Log", status: "operational", tone: "good" },
-];
+/* Map a free-form backend status string onto the widget's tone palette. */
+function statusTone(status: string): Tone {
+  if (/approved|processed|operational|healthy|complete|ok|up|active/i.test(status)) return "good";
+  if (/pending|await|review|reconcil|processing|degraded|warn/i.test(status)) return "warn";
+  if (/fail|reject|error|duplicate|down|outage/i.test(status)) return "bad";
+  return "neutral";
+}
 
 /* ─────────────────────────  Page  ───────────────────────── */
 
@@ -91,26 +72,32 @@ function Dashboard() {
   const { me } = useSession();
   const name = me?.email ? me.email.split("@")[0] : "there";
 
-  // Starts null (matching the static KPIS defaults on server + first client
-  // render); the effect below loads the real counts from the shared
-  // workflow/approval stores client-side, avoiding a hydration mismatch.
-  const [liveCounts, setLiveCounts] = useState<{ active: number; pending: number } | null>(null);
+  // Real backend sources for the data-backed widgets. Construction-specific
+  // widgets with no backend equivalent (secondary KPIs, job-cost closeout) stay
+  // on their static defaults below.
+  const workflows = useWorkflows();
+  const documents = useDocuments();
+  const activity = useAuditEvents("dashboard", 6);
+  const health = useSystemHealth();
 
-  useEffect(() => {
-    const runs = listWorkflowRuns();
-    const approvals = listApprovalItems();
-    setLiveCounts({
-      active: runs.filter((r) => r.status === "running" || r.status === "awaiting_approval").length,
-      pending: approvals.length,
-    });
-  }, []);
+  const wfList = workflows.data ?? [];
+  const activeCount = wfList.filter((w) => /run|await|progress|active/i.test(w.status)).length;
+  const pendingApprovals = wfList.filter(
+    (w) => !w.decision && /pending|await|review/i.test(w.status),
+  ).length;
 
+  // Keep the static defaults until real data arrives (avoids a hydration
+  // mismatch on the SSR pass, matching the previous null-then-load approach).
   const kpis = KPIS.map((k) => {
-    if (!liveCounts) return k;
-    if (k.label === "Active Workflows") return { ...k, value: String(liveCounts.active) };
-    if (k.label === "Pending Approvals") return { ...k, value: String(liveCounts.pending) };
+    if (!workflows.data) return k;
+    if (k.label === "Active Workflows") return { ...k, value: String(activeCount) };
+    if (k.label === "Pending Approvals") return { ...k, value: String(pendingApprovals) };
     return k;
   });
+
+  const recentDocs = (documents.data ?? []).slice(0, 5);
+  const events = activity.data ?? [];
+  const services = health.data ? Object.entries(health.data.services) : [];
 
   return (
     <div className="space-y-7">
@@ -167,77 +154,99 @@ function Dashboard() {
         </Panel>
 
         <Panel icon={Activity} title="Activity" hint="today">
-          <ul className="divide-y divide-border">
-            {ACTIVITY.map((a, i) => (
-              <li key={i} className="flex items-center justify-between gap-3 py-2.5 text-sm">
-                <div className="min-w-0">
-                  <div className="truncate font-medium text-foreground">{a.action}</div>
-                  <div className="truncate text-xs text-muted-foreground">
-                    {a.actor} · {a.detail}
+          {activity.isLoading ? (
+            <LoadingState />
+          ) : events.length === 0 ? (
+            <EmptyState icon={Activity} title="No recent activity" />
+          ) : (
+            <ul className="divide-y divide-border">
+              {events.map((a) => (
+                <li key={a.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                  <div className="min-w-0">
+                    <div className="truncate font-medium text-foreground">{a.action}</div>
+                    <div className="truncate text-xs text-muted-foreground">
+                      {a.actor_email ?? a.actor_id} · {a.resource_kind}
+                    </div>
                   </div>
-                </div>
-                <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{a.time}</span>
-              </li>
-            ))}
-          </ul>
+                  <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                    {new Date(a.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </Panel>
       </div>
 
       {/* Recent documents */}
-      <Panel icon={FileText} title="Recent documents" hint={`${RECENT_DOCS.length} items`}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                <th className="pb-2 font-medium">Document</th>
-                <th className="pb-2 font-medium">Type</th>
-                <th className="pb-2 font-medium">Status</th>
-                <th className="pb-2 text-right font-medium">Date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {RECENT_DOCS.map((d) => {
-                const Icon = d.icon;
-                return (
-                  <tr key={d.name} className="transition-colors hover:bg-surface-2/50">
+      <Panel icon={FileText} title="Recent documents" hint={`${recentDocs.length} items`}>
+        {documents.isLoading ? (
+          <LoadingState />
+        ) : recentDocs.length === 0 ? (
+          <EmptyState icon={FileText} title="No documents yet" />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                  <th className="pb-2 font-medium">Document</th>
+                  <th className="pb-2 font-medium">Type</th>
+                  <th className="pb-2 font-medium">Status</th>
+                  <th className="pb-2 text-right font-medium">Date</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {recentDocs.map((d) => (
+                  <tr key={d.id} className="transition-colors hover:bg-surface-2/50">
                     <td className="py-2.5">
                       <div className="flex items-center gap-2.5">
-                        <Icon className="h-4 w-4 shrink-0 text-primary" />
-                        <span className="font-medium">{d.name}</span>
+                        <FileText className="h-4 w-4 shrink-0 text-primary" />
+                        <span className="font-medium">{d.filename}</span>
                       </div>
                     </td>
-                    <td className="py-2.5 text-muted-foreground">{d.type}</td>
+                    <td className="py-2.5 text-muted-foreground">{d.content_type ?? "—"}</td>
                     <td className="py-2.5">
-                      <StatusPill tone={d.tone}>{d.status}</StatusPill>
+                      <StatusPill tone={statusTone(d.status)}>{d.status}</StatusPill>
                     </td>
-                    <td className="py-2.5 text-right text-muted-foreground">{d.date}</td>
+                    <td className="py-2.5 text-right text-muted-foreground">
+                      {new Date(d.created_at).toLocaleDateString()}
+                    </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Panel>
 
       {/* Connected services */}
       <Panel icon={Cable} title="Connected services" hint="live status">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          {SERVICES.map((s) => (
-            <div
-              key={s.name}
-              className="flex items-center justify-between rounded-xl border border-border bg-surface px-3 py-2.5"
-            >
-              <span className="truncate text-sm">{s.name}</span>
-              <span
-                className={cn(
-                  "h-2 w-2 shrink-0 rounded-full",
-                  s.tone === "good" ? "bg-emerald-500" : s.tone === "warn" ? "bg-amber-500" : "bg-muted-foreground",
-                )}
-                title={s.status}
-              />
-            </div>
-          ))}
-        </div>
+        {health.isLoading ? (
+          <LoadingState />
+        ) : services.length === 0 ? (
+          <EmptyState icon={Cable} title="No services reporting" />
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {services.map(([serviceName, status]) => {
+              const tone = statusTone(status);
+              return (
+                <div
+                  key={serviceName}
+                  className="flex items-center justify-between rounded-xl border border-border bg-surface px-3 py-2.5"
+                >
+                  <span className="truncate text-sm">{serviceName}</span>
+                  <span
+                    className={cn(
+                      "h-2 w-2 shrink-0 rounded-full",
+                      tone === "good" ? "bg-emerald-500" : tone === "warn" ? "bg-amber-500" : "bg-muted-foreground",
+                    )}
+                    title={status}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        )}
       </Panel>
     </div>
   );

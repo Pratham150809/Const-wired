@@ -112,7 +112,7 @@
   }
 }
 
-/* Rich blue gradient fill for primary CTAs and feature surfaces. */
+/* Rich safety-orange gradient fill for primary CTAs and feature surfaces. */
 @utility brand-gradient {
   background-image: linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 100%);
 }
@@ -127,7 +127,7 @@
 /* =============================================================================
    Enterprise app shell theme (Copilot / Dynamics / ServiceNow feel).
    Scoped to `.app-shell` so the marketing landing page keeps its graphite look.
-   Neutral slate surfaces + a professional blue accent. Light is the default;
+   Neutral slate surfaces + the construction safety-orange accent. Light is the default;
    `.app-shell.dark` supplies the dark variant. Because these redefine the same
    CSS variables the design tokens reference, every `bg-background`,
    `text-foreground`, `bg-primary`, etc. inside the shell picks them up.
@@ -170,19 +170,19 @@
   --card-foreground: oklch(0.96 0.004 260);
   --popover: oklch(0.23 0.008 260);
   --popover-foreground: oklch(0.96 0.004 260);
-  --primary: oklch(0.66 0.19 264);
-  --primary-2: oklch(0.58 0.2 276);
+  --primary: oklch(0.68 0.17 45); /* safety orange (matches landing dark) */
+  --primary-2: oklch(0.6 0.18 35); /* deeper burnt-orange for gradient fills */
   --primary-foreground: oklch(0.16 0.01 275);
   --secondary: oklch(0.29 0.01 260);
   --secondary-foreground: oklch(0.96 0.004 260);
   --muted: oklch(0.27 0.01 260);
   --muted-foreground: oklch(0.72 0.014 260);
-  --accent: oklch(0.32 0.05 264);
-  --accent-foreground: oklch(0.9 0.05 264);
+  --accent: oklch(0.32 0.07 80); /* caution-yellow tint */
+  --accent-foreground: oklch(0.88 0.08 85);
   --destructive: oklch(0.62 0.2 27);
   --border: oklch(0.32 0.008 260);
   --input: oklch(0.3 0.01 260);
-  --ring: oklch(0.66 0.19 264);
+  --ring: oklch(0.68 0.17 45);
 }
 
 /* Inside the shell, use the clean system UI font, not the display font. */

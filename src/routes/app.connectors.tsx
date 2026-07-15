@@ -1,20 +1,30 @@
 import { createFileRoute } from "@tanstack/react-router";
+import Nango from "@nangohq/frontend";
 import { Check, ChevronRight, Layers, Plug, Plus, Search, ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { useQueryClient } from "@tanstack/react-query";
+
+import { api, useConnectors, type ConnectorItem } from "../api";
+import { EmptyState, LoadingState } from "../components/common/states";
 import { IntegrationLogo } from "../components/common/IntegrationLogo";
-import { CATEGORIES, INTEGRATIONS } from "../lib/catalog";
-import type { Integration, IntegrationCategory } from "../lib/catalog";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/app/connectors")({ component: Connectors });
 
 function Connectors() {
   const [query, setQuery] = useState("");
-  const [active, setActive] = useState<IntegrationCategory | "all">("all");
+  const [active, setActive] = useState<string>("all");
   const [requestOpen, setRequestOpen] = useState(false);
   const [requestName, setRequestName] = useState("");
+
+  const { data: connectors = [], isLoading } = useConnectors();
+
+  const categories = useMemo(
+    () => Array.from(new Set(connectors.map((c) => c.kind))),
+    [connectors],
+  );
 
   const submitRequest = () => {
     const name = requestName.trim();
@@ -28,13 +38,13 @@ function Connectors() {
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return INTEGRATIONS.filter((i) => {
-      const matchesCat = active === "all" || i.category === active;
+    return connectors.filter((c) => {
+      const matchesCat = active === "all" || c.kind === active;
       const matchesQuery =
-        !q || i.name.toLowerCase().includes(q) || i.category.toLowerCase().includes(q);
+        !q || c.name.toLowerCase().includes(q) || c.kind.toLowerCase().includes(q);
       return matchesCat && matchesQuery;
     });
-  }, [query, active]);
+  }, [connectors, query, active]);
 
   return (
     <div className="space-y-7">
@@ -50,9 +60,9 @@ function Connectors() {
           </h1>
           <p className="mt-1.5 max-w-xl text-sm text-muted-foreground">
             <span className="font-medium text-foreground">
-              {INTEGRATIONS.length} integrations
+              {connectors.length} integrations
             </span>{" "}
-            across {CATEGORIES.length} categories. Authenticate once, then let your copilots read and
+            across {categories.length} categories. Authenticate once, then let your copilots read and
             act across them.
           </p>
         </div>
@@ -146,25 +156,33 @@ function Connectors() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-1.5">
             <Chip label="All" active={active === "all"} onClick={() => setActive("all")} />
-            {CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <Chip key={c} label={c} active={active === c} onClick={() => setActive(c)} />
             ))}
           </div>
           <span className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
             <Layers className="h-3.5 w-3.5" />
-            {results.length} of {INTEGRATIONS.length} shown
+            {results.length} of {connectors.length} shown
           </span>
         </div>
       </div>
 
-      {results.length === 0 ? (
+      {isLoading ? (
+        <LoadingState label="Loading connectors…" />
+      ) : connectors.length === 0 ? (
+        <EmptyState
+          icon={Plug}
+          title="No connectors yet"
+          description="Once a system is connected it will appear here for your copilots to use."
+        />
+      ) : results.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border py-16 text-center text-sm text-muted-foreground">
           No integrations match “{query}”.
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {results.map((i) => (
-            <IntegrationCard key={i.slug} integration={i} />
+          {results.map((c) => (
+            <IntegrationCard key={c.key} connector={c} />
           ))}
         </div>
       )}
@@ -188,52 +206,84 @@ function Chip({ label, active, onClick }: { label: string; active: boolean; onCl
   );
 }
 
-function IntegrationCard({ integration }: { integration: Integration }) {
-  // No live connection state from the backend yet — every card is an
-  // available (not-yet-connected) integration the user can request.
-  const [requested, setRequested] = useState(false);
+async function handleConnect(key: string, queryClient: ReturnType<typeof useQueryClient>) {
+  const session = await api.getConnectSession(key);
+  if (session.status === "sandbox" || !session.session_token) {
+    await api.configureConnector(key, { enabled: true });
+    queryClient.invalidateQueries({ queryKey: ["connectors"] });
+    return;
+  }
+  const nango = new Nango();
+  // NOTE: confirm this call/return against your installed @nangohq/frontend version.
+  const result: any = await nango.openConnectUI({ sessionToken: session.session_token });
+  const connectionId =
+    result?.connectionId ?? result?.payload?.connectionId ?? result?.connection?.connectionId;
+  await api.configureConnector(key, {
+    enabled: true,
+    config: connectionId ? { connection_id: connectionId } : {},
+  });
+  queryClient.invalidateQueries({ queryKey: ["connectors"] });
+}
+
+function IntegrationCard({ connector }: { connector: ConnectorItem }) {
+  const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState(false);
+  const [pending, setPending] = useState(false);
+
+  const toggle = async () => {
+    setPending(true);
+    try {
+      if (connector.enabled) {
+        await api.configureConnector(connector.key, { enabled: false });
+        await queryClient.invalidateQueries({ queryKey: ["connectors"] });
+      } else {
+        await handleConnect(connector.key, queryClient);
+      }
+    } catch (err) {
+      toast.error("Couldn't update connector", {
+        description: err instanceof Error ? err.message : "Please try again.",
+      });
+    } finally {
+      setPending(false);
+    }
+  };
 
   return (
     <div className="group flex flex-col rounded-2xl border border-border bg-surface p-4 transition hover:border-primary/50 hover:shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
-          <IntegrationLogo
-            name={integration.name}
-            domain={integration.domain}
-            logo={integration.logo}
-            className="h-11 w-11 shrink-0"
-          />
+          <IntegrationLogo name={connector.name} className="h-11 w-11 shrink-0" />
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-foreground">{integration.name}</div>
-            <div className="text-xs text-muted-foreground">{integration.category}</div>
+            <div className="truncate text-sm font-semibold text-foreground">{connector.name}</div>
+            <div className="text-xs text-muted-foreground">{connector.kind}</div>
           </div>
         </div>
         <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          {integration.auth ? "Auth" : "Action"}
+          {connector.tool_count} tools
         </span>
       </div>
 
       <div className="mt-3 flex items-center gap-2">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
           <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
-          {requested ? "Requested" : "Available"}
+          {connector.enabled ? "Enabled" : "Disabled"}
         </span>
       </div>
 
       <div className="mt-4 flex items-center gap-2">
         <button
-          onClick={() => setRequested((r) => !r)}
+          onClick={toggle}
+          disabled={pending}
           className={cn(
-            "inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition",
-            requested
+            "inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-50",
+            connector.enabled
               ? "border-primary/40 bg-primary/10 text-primary"
               : "border-border bg-background text-foreground hover:border-primary hover:text-primary",
           )}
         >
-          {requested ? (
+          {connector.enabled ? (
             <>
-              <Check className="h-3.5 w-3.5" /> Requested
+              <Check className="h-3.5 w-3.5" /> Enabled
             </>
           ) : (
             <>
@@ -254,17 +304,17 @@ function IntegrationCard({ integration }: { integration: Integration }) {
         <dl className="mt-3 space-y-1.5 border-t border-border pt-3 text-[11px]">
           <div className="flex justify-between gap-3">
             <dt className="text-muted-foreground">Category</dt>
-            <dd className="font-medium text-foreground">{integration.category}</dd>
+            <dd className="font-medium text-foreground">{connector.kind}</dd>
           </div>
           <div className="flex justify-between gap-3">
-            <dt className="text-muted-foreground">Connection</dt>
-            <dd className="font-medium text-foreground">
-              {integration.auth ? "OAuth / credentials" : "Action API"}
+            <dt className="text-muted-foreground">Tools</dt>
+            <dd className="font-medium text-foreground">{connector.tool_count}</dd>
+          </div>
+          <div className="flex justify-between gap-3">
+            <dt className="text-muted-foreground">Status</dt>
+            <dd className="truncate font-mono font-medium text-foreground">
+              {connector.enabled ? "Enabled" : "Disabled"}
             </dd>
-          </div>
-          <div className="flex justify-between gap-3">
-            <dt className="text-muted-foreground">Provider</dt>
-            <dd className="truncate font-mono font-medium text-foreground">{integration.domain}</dd>
           </div>
         </dl>
       )}
