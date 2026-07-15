@@ -1,30 +1,47 @@
 import { createFileRoute } from "@tanstack/react-router";
 import Nango from "@nangohq/frontend";
-import { Check, ChevronRight, Layers, Plug, Plus, Search, ShieldCheck } from "lucide-react";
+import { Check, Clock, Link2, Plug, Plus, ShieldCheck, X } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { useQueryClient } from "@tanstack/react-query";
 
-import { api, useConnectors, type ConnectorItem } from "../api";
+import {
+  api,
+  useAccessRequests,
+  useConnectorCatalog,
+  useDecideAccessRequest,
+  useRequestAccess,
+  useSetEntitlement,
+  type AccessRequest,
+  type ConnectorItem,
+} from "../api";
 import { EmptyState, LoadingState } from "../components/common/states";
 import { IntegrationLogo } from "../components/common/IntegrationLogo";
+import { useSession } from "../lib/session";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/app/connectors")({ component: Connectors });
 
 function Connectors() {
-  const [query, setQuery] = useState("");
-  const [active, setActive] = useState<string>("all");
   const [requestOpen, setRequestOpen] = useState(false);
   const [requestName, setRequestName] = useState("");
 
-  const { data: connectors = [], isLoading } = useConnectors();
+  const { isManager: isAdmin } = useSession();
+  const { data: catalog = [], isLoading } = useConnectorCatalog();
+  const { data: requests = [] } = useAccessRequests();
 
   const categories = useMemo(
-    () => Array.from(new Set(connectors.map((c) => c.kind))),
-    [connectors],
+    () => Array.from(new Set(catalog.map((c) => c.kind))),
+    [catalog],
   );
+
+  // Three enterprise buckets derived from the full catalogue's `entitled`/`enabled` flags.
+  const connected = catalog.filter((c) => c.entitled && c.enabled);
+  const available = catalog.filter((c) => c.entitled && !c.enabled);
+  const pending = catalog.filter((c) => !c.entitled);
 
   const submitRequest = () => {
     const name = requestName.trim();
@@ -35,16 +52,6 @@ function Connectors() {
     setRequestName("");
     setRequestOpen(false);
   };
-
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return connectors.filter((c) => {
-      const matchesCat = active === "all" || c.kind === active;
-      const matchesQuery =
-        !q || c.name.toLowerCase().includes(q) || c.kind.toLowerCase().includes(q);
-      return matchesCat && matchesQuery;
-    });
-  }, [connectors, query, active]);
 
   return (
     <div className="space-y-7">
@@ -60,7 +67,7 @@ function Connectors() {
           </h1>
           <p className="mt-1.5 max-w-xl text-sm text-muted-foreground">
             <span className="font-medium text-foreground">
-              {connectors.length} integrations
+              {catalog.length} integrations
             </span>{" "}
             across {categories.length} categories. Authenticate once, then let your copilots read and
             act across them.
@@ -141,71 +148,162 @@ function Connectors() {
         </div>
       </section>
 
-      {/* Search + category filter */}
-      <div className="flex flex-col gap-3">
-        <div className="relative max-w-md">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search integrations…"
-            className="w-full rounded-lg border border-border bg-surface py-2 pl-9 pr-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap gap-1.5">
-            <Chip label="All" active={active === "all"} onClick={() => setActive("all")} />
-            {categories.map((c) => (
-              <Chip key={c} label={c} active={active === c} onClick={() => setActive(c)} />
-            ))}
-          </div>
-          <span className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
-            <Layers className="h-3.5 w-3.5" />
-            {results.length} of {connectors.length} shown
-          </span>
-        </div>
-      </div>
-
       {isLoading ? (
         <LoadingState label="Loading connectors…" />
-      ) : connectors.length === 0 ? (
+      ) : catalog.length === 0 ? (
         <EmptyState
           icon={Plug}
           title="No connectors yet"
           description="Once a system is connected it will appear here for your copilots to use."
         />
-      ) : results.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border py-16 text-center text-sm text-muted-foreground">
-          No integrations match “{query}”.
-        </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {results.map((c) => (
-            <IntegrationCard key={c.key} connector={c} />
-          ))}
+        <div className="space-y-8">
+          {/* 1 — Connected Systems */}
+          {connected.length > 0 && (
+            <Section title="Connected systems" count={connected.length}>
+              {connected.map((c) => (
+                <ConnectedCard key={c.key} connector={c} />
+              ))}
+            </Section>
+          )}
+
+          {/* 2 — Available Connectors */}
+          {available.length > 0 && (
+            <Section title="Available connectors" count={available.length}>
+              {available.map((c) => (
+                <AvailableCard key={c.key} connector={c} />
+              ))}
+            </Section>
+          )}
+
+          {/* 3 — Pending Permissions */}
+          <Section title="Pending permissions" count={pending.length || undefined}>
+            {pending.length > 0 ? (
+              pending.map((c) => (
+                <PendingCard
+                  key={c.key}
+                  connector={c}
+                  request={requests.find(
+                    (r) => r.connector_key === c.key && r.status === "pending",
+                  )}
+                  isAdmin={isAdmin}
+                />
+              ))
+            ) : (
+              <p className="col-span-full text-xs text-muted-foreground">
+                No connectors are pending — your workspace has access to the full catalog.
+              </p>
+            )}
+          </Section>
         </div>
       )}
     </div>
   );
 }
 
-function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+/* ───────────────────────────  Layout  ─────────────────────────── */
+
+function Section({
+  title,
+  count,
+  children,
+}: {
+  title: string;
+  count?: number;
+  children: ReactNode;
+}) {
   return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "rounded-full border px-3 py-1 text-xs font-medium transition",
-        active
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-border bg-surface text-muted-foreground hover:border-primary/40 hover:text-foreground",
-      )}
-    >
-      {label}
-    </button>
+    <section className="space-y-3">
+      <div className="flex items-center gap-2">
+        <h2 className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          {title}
+        </h2>
+        {count !== undefined && (
+          <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            {count}
+          </span>
+        )}
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{children}</div>
+    </section>
   );
 }
 
+/** Shared connector card visual. Each section swaps the badge + action area. */
+function ConnectorShell({
+  connector,
+  badge,
+  children,
+}: {
+  connector: ConnectorItem;
+  badge: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div className="group flex flex-col rounded-2xl border border-border bg-surface p-4 transition hover:border-primary/50 hover:shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <IntegrationLogo name={connector.name} className="h-11 w-11 shrink-0" />
+          <div className="min-w-0">
+            <div className="truncate text-sm font-semibold text-foreground">{connector.name}</div>
+            <div className="text-xs text-muted-foreground">{connector.kind}</div>
+          </div>
+        </div>
+        <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          {connector.tool_count} tools
+        </span>
+      </div>
+
+      <div className="mt-3 flex items-center gap-2">{badge}</div>
+
+      <div className="mt-4 flex items-center gap-2">{children}</div>
+    </div>
+  );
+}
+
+/* ───────────────────────────  Badges  ─────────────────────────── */
+
+function ConnectedBadge() {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+      Connected
+    </span>
+  );
+}
+
+function AvailableBadge() {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+      <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
+      Available
+    </span>
+  );
+}
+
+function AwaitingBadge() {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-600 dark:text-amber-400">
+      <Clock className="h-3 w-3" />
+      Awaiting approval
+    </span>
+  );
+}
+
+function RestrictedBadge() {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+      <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
+      Restricted
+    </span>
+  );
+}
+
+/* ───────────────────────────  Cards  ─────────────────────────── */
+
+/** Existing Nango Connect flow, preserved verbatim. In sandbox / tokenless mode it
+ *  just enables the connector; otherwise it opens Nango's Connect UI and stores the
+ *  resulting connection id. */
 async function handleConnect(key: string, queryClient: ReturnType<typeof useQueryClient>) {
   const session = await api.getConnectSession(key);
   if (session.status === "sandbox" || !session.session_token) {
@@ -225,22 +323,52 @@ async function handleConnect(key: string, queryClient: ReturnType<typeof useQuer
   queryClient.invalidateQueries({ queryKey: ["connectors"] });
 }
 
-function IntegrationCard({ connector }: { connector: ConnectorItem }) {
+function ActionButton({
+  onClick,
+  disabled,
+  variant = "outline",
+  icon: Icon,
+  children,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  variant?: "outline" | "primary" | "danger";
+  icon?: LucideIcon;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        "inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-50",
+        variant === "primary" &&
+          "border-primary/40 bg-primary/10 text-primary hover:border-primary hover:bg-primary/15",
+        variant === "danger" &&
+          "border-destructive/40 bg-destructive/10 text-destructive hover:border-destructive",
+        variant === "outline" &&
+          "border-border bg-background text-foreground hover:border-primary hover:text-primary",
+      )}
+    >
+      {Icon && <Icon className="h-3.5 w-3.5" />}
+      {children}
+    </button>
+  );
+}
+
+/** Connected: green badge + Disconnect. */
+function ConnectedCard({ connector }: { connector: ConnectorItem }) {
   const queryClient = useQueryClient();
-  const [expanded, setExpanded] = useState(false);
   const [pending, setPending] = useState(false);
 
-  const toggle = async () => {
+  const disconnect = async () => {
     setPending(true);
     try {
-      if (connector.enabled) {
-        await api.configureConnector(connector.key, { enabled: false });
-        await queryClient.invalidateQueries({ queryKey: ["connectors"] });
-      } else {
-        await handleConnect(connector.key, queryClient);
-      }
+      await api.configureConnector(connector.key, { enabled: false });
+      await queryClient.invalidateQueries({ queryKey: ["connector-catalog"] });
+      toast.success(`Disconnected ${connector.name}`);
     } catch (err) {
-      toast.error("Couldn't update connector", {
+      toast.error("Couldn't disconnect", {
         description: err instanceof Error ? err.message : "Please try again.",
       });
     } finally {
@@ -249,75 +377,135 @@ function IntegrationCard({ connector }: { connector: ConnectorItem }) {
   };
 
   return (
-    <div className="group flex flex-col rounded-2xl border border-border bg-surface p-4 transition hover:border-primary/50 hover:shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
-          <IntegrationLogo name={connector.name} className="h-11 w-11 shrink-0" />
-          <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-foreground">{connector.name}</div>
-            <div className="text-xs text-muted-foreground">{connector.kind}</div>
-          </div>
-        </div>
-        <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          {connector.tool_count} tools
-        </span>
-      </div>
+    <ConnectorShell connector={connector} badge={<ConnectedBadge />}>
+      <ActionButton onClick={disconnect} disabled={pending} variant="outline">
+        Disconnect
+      </ActionButton>
+    </ConnectorShell>
+  );
+}
 
-      <div className="mt-3 flex items-center gap-2">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
-          {connector.enabled ? "Enabled" : "Disabled"}
-        </span>
-      </div>
+/** Available: entitled but not enabled — run the Nango Connect flow. */
+function AvailableCard({ connector }: { connector: ConnectorItem }) {
+  const queryClient = useQueryClient();
+  const [pending, setPending] = useState(false);
 
-      <div className="mt-4 flex items-center gap-2">
-        <button
-          onClick={toggle}
-          disabled={pending}
-          className={cn(
-            "inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-50",
-            connector.enabled
-              ? "border-primary/40 bg-primary/10 text-primary"
-              : "border-border bg-background text-foreground hover:border-primary hover:text-primary",
-          )}
-        >
-          {connector.enabled ? (
-            <>
-              <Check className="h-3.5 w-3.5" /> Enabled
-            </>
-          ) : (
-            <>
-              <Plus className="h-3.5 w-3.5" /> Connect
-            </>
-          )}
-        </button>
-        <button
-          onClick={() => setExpanded((e) => !e)}
-          aria-label={expanded ? "Hide details" : "Show details"}
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
-        >
-          <ChevronRight className={cn("h-4 w-4 transition-transform", expanded && "rotate-90")} />
-        </button>
-      </div>
+  const connect = async () => {
+    setPending(true);
+    try {
+      await handleConnect(connector.key, queryClient);
+      await queryClient.invalidateQueries({ queryKey: ["connector-catalog"] });
+      toast.success(`Connected ${connector.name}`);
+    } catch (err) {
+      toast.error("Couldn't connect", {
+        description: err instanceof Error ? err.message : "Please try again.",
+      });
+    } finally {
+      setPending(false);
+    }
+  };
 
-      {expanded && (
-        <dl className="mt-3 space-y-1.5 border-t border-border pt-3 text-[11px]">
-          <div className="flex justify-between gap-3">
-            <dt className="text-muted-foreground">Category</dt>
-            <dd className="font-medium text-foreground">{connector.kind}</dd>
-          </div>
-          <div className="flex justify-between gap-3">
-            <dt className="text-muted-foreground">Tools</dt>
-            <dd className="font-medium text-foreground">{connector.tool_count}</dd>
-          </div>
-          <div className="flex justify-between gap-3">
-            <dt className="text-muted-foreground">Status</dt>
-            <dd className="truncate font-mono font-medium text-foreground">
-              {connector.enabled ? "Enabled" : "Disabled"}
-            </dd>
-          </div>
-        </dl>
+  return (
+    <ConnectorShell connector={connector} badge={<AvailableBadge />}>
+      <ActionButton onClick={connect} disabled={pending} variant="primary" icon={Plus}>
+        Connect
+      </ActionButton>
+    </ConnectorShell>
+  );
+}
+
+/** Pending: not entitled. Members request access; admins grant directly or
+ *  approve/reject an outstanding request. */
+function PendingCard({
+  connector,
+  request,
+  isAdmin,
+}: {
+  connector: ConnectorItem;
+  request?: AccessRequest;
+  isAdmin: boolean;
+}) {
+  const requestAccess = useRequestAccess();
+  const decide = useDecideAccessRequest();
+  const setEntitlement = useSetEntitlement();
+
+  const busy = requestAccess.isPending || decide.isPending || setEntitlement.isPending;
+
+  const onRequest = () =>
+    requestAccess.mutate(
+      { key: connector.key },
+      {
+        onSuccess: () =>
+          toast.success(`Access requested for ${connector.name}`, {
+            description: "An admin will review your request.",
+          }),
+        onError: (err) =>
+          toast.error("Couldn't request access", {
+            description: err instanceof Error ? err.message : "Please try again.",
+          }),
+      },
+    );
+
+  const onGrant = () =>
+    setEntitlement.mutate(
+      { key: connector.key, allowed: true },
+      {
+        onSuccess: () => toast.success(`Granted access to ${connector.name}`),
+        onError: (err) =>
+          toast.error("Couldn't grant access", {
+            description: err instanceof Error ? err.message : "Please try again.",
+          }),
+      },
+    );
+
+  const onDecide = (decision: "approve" | "reject") => {
+    if (!request) return;
+    decide.mutate(
+      { id: request.id, decision },
+      {
+        onSuccess: () =>
+          toast.success(
+            decision === "approve"
+              ? `Approved access to ${connector.name}`
+              : `Rejected request for ${connector.name}`,
+          ),
+        onError: (err) =>
+          toast.error("Couldn't update request", {
+            description: err instanceof Error ? err.message : "Please try again.",
+          }),
+      },
+    );
+  };
+
+  return (
+    <ConnectorShell
+      connector={connector}
+      badge={request ? <AwaitingBadge /> : <RestrictedBadge />}
+    >
+      {request ? (
+        isAdmin ? (
+          <>
+            <ActionButton onClick={() => onDecide("approve")} disabled={busy} variant="primary" icon={Check}>
+              Approve
+            </ActionButton>
+            <ActionButton onClick={() => onDecide("reject")} disabled={busy} variant="danger" icon={X}>
+              Reject
+            </ActionButton>
+          </>
+        ) : (
+          <span className="flex-1 text-center text-xs text-muted-foreground">
+            Awaiting an admin's approval.
+          </span>
+        )
+      ) : isAdmin ? (
+        <ActionButton onClick={onGrant} disabled={busy} variant="primary" icon={ShieldCheck}>
+          Grant access
+        </ActionButton>
+      ) : (
+        <ActionButton onClick={onRequest} disabled={busy} variant="outline" icon={Link2}>
+          Request access
+        </ActionButton>
       )}
-    </div>
+    </ConnectorShell>
   );
 }

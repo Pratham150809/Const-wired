@@ -128,6 +128,17 @@ export interface ConnectorItem {
   entitled?: boolean;
 }
 
+export interface AccessRequest {
+  id: string;
+  connector_key: string;
+  status: "pending" | "approved" | "rejected";
+  requested_by: string;
+  note: string | null;
+  decided_by: string | null;
+  created_at: string;
+  decided_at: string | null;
+}
+
 export interface AuditEvent {
   id: string;
   tenant_id: string;
@@ -1560,6 +1571,48 @@ export function configureConnector(
   });
 }
 
+/** Grant or revoke a tenant's entitlement to a connector (admin-only). */
+export function setConnectorEntitlement(key: string, allowed: boolean): Promise<unknown> {
+  return request(`/api/connectors/connectors/entitlements/${key}`, {
+    method: "PUT",
+    body: JSON.stringify({ allowed }),
+  });
+}
+
+/** Request access to a connector the tenant is not yet entitled to. Creates a
+ *  pending access request for an admin to approve or reject. */
+export function requestConnectorAccess(
+  key: string,
+  note?: string,
+): Promise<{ connector_key: string; status: string }> {
+  return request(`/api/connectors/connectors/${key}/request-access`, {
+    method: "POST",
+    body: JSON.stringify(note ? { note } : {}),
+  });
+}
+
+/** List connector access requests (defaults to pending). */
+export function listAccessRequests(status = "pending"): Promise<AccessRequest[]> {
+  const q = status ? `?status=${encodeURIComponent(status)}` : "";
+  return request<AccessRequest[]>(`/api/connectors/connectors/access-requests${q}`);
+}
+
+/** Approve a pending access request (admin). Grants the entitlement server-side. */
+export function approveAccessRequest(
+  id: string,
+): Promise<{ id: string; connector_key: string; status: string }> {
+  return request(`/api/connectors/connectors/access-requests/${id}/approve`, {
+    method: "POST",
+  });
+}
+
+/** Reject a pending access request (admin). */
+export function rejectAccessRequest(id: string): Promise<{ id: string; status: string }> {
+  return request(`/api/connectors/connectors/access-requests/${id}/reject`, {
+    method: "POST",
+  });
+}
+
 // ---------------------------------------------------------------- audit
 export function listAuditEvents(params?: { limit?: number }): Promise<AuditEvent[]> {
   if (DUMMY_DATA) return Promise.resolve(dummyListAuditEvents(params?.limit));
@@ -1637,6 +1690,11 @@ export const api = {
   listConnectorCatalog,
   configureConnector,
   getConnectSession,
+  setConnectorEntitlement,
+  requestConnectorAccess,
+  listAccessRequests,
+  approveAccessRequest,
+  rejectAccessRequest,
   listAuditEvents,
   getTenant,
   updateTenantSettings,
