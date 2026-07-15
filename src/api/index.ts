@@ -14,6 +14,7 @@ export * from "./query/useTenant";
 export * from "./query/useUsers";
 export * from "./query/useAuditEvents";
 export * from "./query/useRun";
+export * from "./query/useChatSessions";
 
 // Mutation hooks
 export * from "./mutation/useAssignRole";
@@ -27,3 +28,5 @@ export * from "./mutation/useDecideRun";
 export * from "./mutation/useRequestAccess";
 export * from "./mutation/useDecideAccessRequest";
 export * from "./mutation/useSetEntitlement";
+export * from "./mutation/useRenameChatSession";
+export * from "./mutation/useDeleteChatSession";

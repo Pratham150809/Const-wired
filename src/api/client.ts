@@ -180,6 +180,38 @@ export interface ChatReply {
   answer: string;
 }
 
+/** The `workflow` SSE frame — emitted when the assistant actually STARTED a workflow
+ *  run (poll it with `getRun` / `useRun`). Extra fields are passed through untouched. */
+export interface ChatWorkflowFrame {
+  run_id: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
+/** One decoded SSE frame from the streaming chat endpoint. */
+export interface ChatStreamFrame {
+  delta?: string;
+  session_id?: string;
+  model?: string;
+  error?: string;
+  workflow?: ChatWorkflowFrame;
+}
+
+export interface ChatHistory {
+  session_id: string;
+  messages: { role: string; content: string }[];
+}
+
+/** One row in the Conversations sidebar — a past chat session for this user.
+ *  `last_activity` may be null on a session that has a title but no turns yet. */
+export interface ChatSessionSummary {
+  id: string;
+  title: string;
+  preview: string;
+  created_at: string;
+  last_activity: string | null;
+}
+
 // ---------------------------------------------------------------- auth
 export interface SignupInput {
   name: string;
@@ -1271,18 +1303,25 @@ export function chat(input: {
   });
 }
 
-/** Streaming chat via SSE. Yields text deltas; caller concatenates. */
+/** Streaming chat via SSE. Yields decoded frames (caller concatenates `delta`s).
+ *  The FIRST frame carries `session_id` (send it back on the next request to CONTINUE
+ *  the session); a `workflow` frame means the assistant STARTED a run. Both are also
+ *  surfaced through the optional `onSession` / `onWorkflow` callbacks. */
 export async function* chatStream(input: {
   message: string;
   session_id?: string;
   use_rag?: boolean;
   model?: string;
   workspace?: string; // active industry workspace, so the assistant is workspace-aware
-}): AsyncGenerator<{ delta?: string; session_id?: string; model?: string; error?: string }> {
+  onSession?: (sessionId: string) => void;
+  onWorkflow?: (workflow: ChatWorkflowFrame) => void;
+}): AsyncGenerator<ChatStreamFrame> {
+  const { onSession, onWorkflow, ...payload } = input;
   if (DUMMY_DATA) {
-    const sessionId = input.session_id ?? `sess_${Date.now().toString(36)}`;
+    const sessionId = payload.session_id ?? `sess_${Date.now().toString(36)}`;
+    onSession?.(sessionId);
     yield { session_id: sessionId, model: "dummy-assistant" };
-    const answer = dummyAssistantAnswer(input.message, input.use_rag);
+    const answer = dummyAssistantAnswer(payload.message, payload.use_rag);
     for (const word of answer.split(/(\s+)/)) {
       if (!word) continue;
       await sleep(16 + Math.random() * 24);
@@ -1303,7 +1342,7 @@ export async function* chatStream(input: {
       "ngrok-skip-browser-warning": "true",
       ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
     },
-    body: JSON.stringify(input),
+    body: JSON.stringify(payload),
   });
   if (!resp.ok || !resp.body) throw new ApiError("Stream failed", resp.status);
   const reader = resp.body.getReader();
@@ -1319,12 +1358,46 @@ export async function* chatStream(input: {
       const data = line.replace(/^data: /, "").trim();
       if (!data || data === "[DONE]") continue;
       try {
-        yield JSON.parse(data);
+        const frame = JSON.parse(data) as ChatStreamFrame;
+        // FIRST frame carries the session_id; a `workflow` frame means a run started.
+        if (frame.session_id) onSession?.(frame.session_id);
+        if (frame.workflow) onWorkflow?.(frame.workflow);
+        yield frame;
       } catch {
         /* ignore partial frames */
       }
     }
   }
+}
+
+/** Fetch a stored chat session's transcript so it can be rehydrated after a reload
+ *  or a tab switch. Pass the persisted `session_id`. */
+export function getChatHistory(sessionId: string): Promise<ChatHistory> {
+  return request<ChatHistory>(
+    `/api/orchestrator/chat/history?session_id=${encodeURIComponent(sessionId)}`,
+  );
+}
+
+/** This user's past chat sessions for the Conversations sidebar — most-recent
+ *  first, empty sessions omitted by the gateway. */
+export function listChatSessions(): Promise<ChatSessionSummary[]> {
+  return request<ChatSessionSummary[]>("/api/orchestrator/chat/sessions");
+}
+
+/** Rename a chat session (sidebar pencil / main-header pencil). */
+export function renameChatSession(id: string, title: string): Promise<{ id: string; title: string }> {
+  return request<{ id: string; title: string }>(
+    `/api/orchestrator/chat/sessions/${encodeURIComponent(id)}`,
+    { method: "PATCH", body: JSON.stringify({ title }) },
+  );
+}
+
+/** Delete a chat session (sidebar trash). */
+export function deleteChatSession(id: string): Promise<{ id: string; status: string }> {
+  return request<{ id: string; status: string }>(
+    `/api/orchestrator/chat/sessions/${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+  );
 }
 
 // ---------------------------------------------------------------- knowledge
@@ -1708,6 +1781,10 @@ export const api = {
   getMe,
   chat,
   chatStream,
+  getChatHistory,
+  listChatSessions,
+  renameChatSession,
+  deleteChatSession,
   listDocuments,
   getDocument,
   uploadDocument,

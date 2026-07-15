@@ -21,6 +21,7 @@ import {
 } from "../api";
 import { EmptyState, LoadingState } from "../components/common/states";
 import { WorkflowFlow } from "../components/workflow/WorkflowFlow";
+import { WorkflowFlowDialog } from "../components/workflow/WorkflowFlowDialog";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/app/workflows/")({ component: Workflows });
@@ -269,7 +270,10 @@ function TemplateCard({ def }: { def: WorkflowDefinitionSpec }) {
           </span>
         )}
         <button
-          onClick={onRun}
+          onClick={(e) => {
+            e.stopPropagation(); // don't let Run open the flow dialog
+            onRun();
+          }}
           disabled={start.isPending}
           className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary transition hover:bg-primary/20 disabled:opacity-60"
         >
@@ -282,7 +286,15 @@ function TemplateCard({ def }: { def: WorkflowDefinitionSpec }) {
           {def.description}
         </p>
       )}
-      <WorkflowFlow def={def} />
+      {/* Click the flow preview to open the full n8n-style flow card. */}
+      <WorkflowFlowDialog def={def}>
+        <button
+          type="button"
+          className="block w-full cursor-pointer rounded-xl text-left transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        >
+          <WorkflowFlow def={def} />
+        </button>
+      </WorkflowFlowDialog>
     </div>
   );
 }
