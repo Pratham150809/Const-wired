@@ -2,6 +2,7 @@ import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   CheckCircle2,
   ClipboardCheck,
+  Eye,
   Loader2,
   Pencil,
   Play,
@@ -10,6 +11,7 @@ import {
   Workflow as WorkflowIcon,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -21,7 +23,7 @@ import {
 } from "../api";
 import { EmptyState, LoadingState } from "../components/common/states";
 import { WorkflowFlow } from "../components/workflow/WorkflowFlow";
-import { WorkflowFlowDialog } from "../components/workflow/WorkflowFlowDialog";
+import { WorkflowPreview } from "../components/workflow/WorkflowPreview";
 import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/app/workflows/")({ component: Workflows });
@@ -47,6 +49,14 @@ function Workflows() {
   const { data: definitions = [] } = useWorkflowDefinitions();
   const templates = definitions.filter((d) => d.pack_key === "construction");
   const myWorkflows = definitions.filter((d) => d.source === "user");
+
+  // A single preview Sheet, driven by open + the last-activated template. Keeping the
+  // template while the sheet animates closed avoids the content vanishing mid-slide.
+  const [preview, setPreview] = useState<{ open: boolean; template: WorkflowDefinitionSpec | null }>({
+    open: false,
+    template: null,
+  });
+  const openPreview = (template: WorkflowDefinitionSpec) => setPreview({ open: true, template });
 
   const running = workflows.filter((w) => w.status === "running").length;
   const pending = workflows.filter((w) => w.status === "awaiting_approval").length;
@@ -92,10 +102,17 @@ function Workflows() {
       {templates.length > 0 && (
         <div className="mb-6 space-y-3">
           {templates.map((d) => (
-            <TemplateCard key={d.workflow_key} def={d} />
+            <TemplateCard key={d.workflow_key} def={d} onPreview={openPreview} />
           ))}
         </div>
       )}
+
+      {/* Slide-in preview panel for the construction templates. */}
+      <WorkflowPreview
+        open={preview.open}
+        onOpenChange={(open) => setPreview((p) => ({ ...p, open }))}
+        spec={preview.template}
+      />
 
       {/* KPI tiles */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -243,7 +260,13 @@ function MyWorkflowCard({ def }: { def: WorkflowDefinitionSpec }) {
 
 /* ─────────────────────────  Template card (construction)  ───────────────────────── */
 
-function TemplateCard({ def }: { def: WorkflowDefinitionSpec }) {
+function TemplateCard({
+  def,
+  onPreview,
+}: {
+  def: WorkflowDefinitionSpec;
+  onPreview: (def: WorkflowDefinitionSpec) => void;
+}) {
   const navigate = useNavigate();
   const start = useStartWorkflow();
 
@@ -261,40 +284,44 @@ function TemplateCard({ def }: { def: WorkflowDefinitionSpec }) {
     );
 
   return (
-    <div>
-      <div className="mb-1 flex flex-wrap items-center gap-2">
-        <h2 className="text-sm font-semibold text-foreground">{def.name}</h2>
-        {def.latest_status && (
-          <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">
-            {def.latest_status}
-          </span>
-        )}
-        <button
-          onClick={(e) => {
-            e.stopPropagation(); // don't let Run open the flow dialog
-            onRun();
-          }}
-          disabled={start.isPending}
-          className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary transition hover:bg-primary/20 disabled:opacity-60"
-        >
-          {start.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-          {start.isPending ? "Starting…" : "Run"}
-        </button>
+    <div className="rounded-2xl border border-border bg-card p-4 transition hover:border-primary/40">
+      <div className="flex items-start gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+          <WorkflowIcon className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-sm font-semibold text-foreground">{def.name}</h3>
+            {def.latest_status && (
+              <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">
+                {def.latest_status}
+              </span>
+            )}
+          </div>
+          {def.description && (
+            <p className="mt-1 line-clamp-1 text-xs leading-relaxed text-muted-foreground">
+              {def.description}
+            </p>
+          )}
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <button
+            onClick={() => onPreview(def)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1 text-xs font-medium text-muted-foreground transition hover:text-foreground"
+          >
+            <Eye className="h-3.5 w-3.5" />
+            Preview
+          </button>
+          <button
+            onClick={onRun}
+            disabled={start.isPending}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary transition hover:bg-primary/20 disabled:opacity-60"
+          >
+            {start.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+            {start.isPending ? "Starting…" : "Run"}
+          </button>
+        </div>
       </div>
-      {def.description && (
-        <p className="mb-2 max-w-3xl text-xs leading-relaxed text-muted-foreground">
-          {def.description}
-        </p>
-      )}
-      {/* Click the flow preview to open the full n8n-style flow card. */}
-      <WorkflowFlowDialog def={def}>
-        <button
-          type="button"
-          className="block w-full cursor-pointer rounded-xl text-left transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-        >
-          <WorkflowFlow def={def} />
-        </button>
-      </WorkflowFlowDialog>
     </div>
   );
 }
